@@ -41,14 +41,14 @@ client.once(Events.ClientReady, async readyClient => {
 });
 
 client.on(Events.MessageCreate, async message => {
-	if (message.author.id == message.client.user.id) return;
+	if (message.author.id == message.client.user.id || message.author.bot) return;
 	let res: boolean | string | undefined;
 	try {
-		if (message.channel.isDMBased()) res = await chat(message.author.displayName, "Discord Direct Message", message.content, false);
-		else if (message.mentions.has(message.client.user.id) || message.content.toLowerCase().includes("summatia")) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message.content, false);
+		if (message.channel.isDMBased()) res = await chat(message.author.displayName, "Discord Direct Message", message, false);
+		else if (message.mentions.has(message.client.user.id) || message.content.toLowerCase().includes("summatia")) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
 		else {
 			const chance = await shouldListen(message.channelId);
-			if (chance >= 0) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message.content, Math.random() * 100 > chance);
+			if (chance >= 0) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, Math.random() * 100 > chance);
 		}
 
 		if (res !== undefined) {
