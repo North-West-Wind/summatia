@@ -1,0 +1,25 @@
+{
+  "name": "summatia",
+  "version": "1.0.0",
+  "description": "Talk to Summatia!",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "npm run build && npm start",
+    "rest": "node dist/rest.js"
+  },
+  "author": "NorthWestWind",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "discord.js": "^14.15.2",
+    "dotenv": "^16.4.5",
+    "node-fetch": "^2.7.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/node-fetch": "^2.6.11",
+    "typescript": "^5.4.5"
+  }
+}
