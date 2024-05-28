@@ -7,7 +7,7 @@ export async function chat(name: string, platform: string, message: Message, noR
 		platform,
 		noResponse
 	};
-	if (message.content) sendObj = Object.assign(sendObj, { message: message.content });
+	if (message.content) sendObj = Object.assign(sendObj, { message: message.cleanContent });
 	if (message.attachments.size) {
 		const images: string[] = [];
 		for (const attachment of message.attachments.values()) {

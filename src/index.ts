@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits, Partials, REST, Routes } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, MessageType, Partials, REST, Routes } from "discord.js";
 import "dotenv/config";
 import fetch from "node-fetch";
 import { getCommands } from "./types/command";
@@ -45,7 +45,9 @@ client.on(Events.MessageCreate, async message => {
 	let res: boolean | string | undefined;
 	try {
 		if (message.channel.isDMBased()) res = await chat(message.author.displayName, "Discord Direct Message", message, false);
-		else if (message.mentions.has(message.client.user.id) || message.content.toLowerCase().includes("summatia")) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
+		else if (message.mentions.has(message.client.user.id) ||
+			message.content.toLowerCase().includes("summatia") ||
+			message.type == MessageType.Reply && (await message.channel.messages.fetch(message.reference?.messageId!)).author.id == message.client.user.id) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
 		else {
 			const chance = await shouldListen(message.channelId);
 			if (chance >= 0) res = await chat(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, Math.random() * 100 > chance);
