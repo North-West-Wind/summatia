@@ -4,7 +4,7 @@ import { verbose } from "sqlite3";
 let ready = false;
 
 const sqlite3 = verbose();
-const db = new sqlite3.Database("listen.db");
+const db = new sqlite3.Database("runtime/discord.db");
 db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='listen'", (err, row) => {
 	if (err) console.error(err);
 	if (!row) db.run("CREATE TABLE listen (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)", (err) => {

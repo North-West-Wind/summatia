@@ -2,11 +2,11 @@ import { REST, Routes } from "discord.js";
 import "dotenv/config";
 import { getCommands } from "./types/command";
 
-if (!process.env.CLIENT_ID) throw new Error("client id not set");
-if (!process.env.TOKEN) throw new Error("bot token not set");
+if (!process.env.DISCORD_CLIENT_ID) throw new Error("client id not set");
+if (!process.env.DISCORD_TOKEN) throw new Error("bot token not set");
 
 // application command registration
-const rest = new REST().setToken(process.env.TOKEN);
+const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
 	const commands = getCommands().map(cmd => cmd.data.toJSON());
@@ -16,12 +16,12 @@ const rest = new REST().setToken(process.env.TOKEN);
 		let data: unknown;
 		if (process.env.GUILD_ID)
 			data = await rest.put(
-				Routes.applicationGuildCommands(process.env.CLIENT_ID!, process.env.GUILD_ID),
+				Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID!, process.env.GUILD_ID),
 				{ body: commands },
 			);
 		else
 			data = await rest.put(
-				Routes.applicationCommands(process.env.CLIENT_ID!),
+				Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!),
 				{ body: commands },
 			);
 
