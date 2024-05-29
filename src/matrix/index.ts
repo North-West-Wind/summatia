@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./types/events";
-import { chat } from "../api";
+import { chat, isOnline } from "../api";
 import { discordId } from "..";
 import { getRoomParents } from "./helpers/rooms";
 
@@ -24,24 +24,33 @@ client.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
 	if (event.sender === selfId || event.sender === "@discord_" + discordId()) return;
 
 	const body = event.content.body;
-	let res: boolean | string | undefined;
-	if (body.includes(selfId) || body.toLowerCase().includes("summatia")) {
-		const states = await client.getRoomState(roomId);
-		let name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
+
+	const states = await client.getRoomState(roomId);
+	let name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
+	let members = (states.map(state => {
+		if (state.type != "m.room.member") return 0;
+		if (state.content.membership == "join") return 1;
+		if (state.content.membership == "leave") return -1;
+		return 0;
+	}) as number[]).reduce((a, b) => a + b);
+
+	let replyToMe = false;
+	const replyEventId = (event.content["m.relates_to"] as any)?.["m.in_reply_to"]?.event_id;
+	try {
+		replyToMe = replyEventId && (await client.getEvent(roomId, replyEventId))?.sender === selfId;
+	} catch (err) {
+		console.error(err);
+	}
+
+	if (body.includes(selfId) || body.toLowerCase().includes("summatia") || members == 2 && !name || replyToMe) {
+		if (!(await isOnline())) return;
 		let parents: string[] = [];
 		const parentState = states.filter(state => state.type == "m.space.parent").pop();
 		if (parentState) parents = await getRoomParents(client, parentState.state_key);
-		let members = (states.map(state => {
-			if (state.type != "m.room.member") return 0;
-			if (state.content.membership == "join") return 1;
-			if (state.content.membership == "leave") return -1;
-			return 0;
-		}) as number[]).reduce((a, b) => a + b);
 		let platform: string;
 		if (members == 2 && !name) platform = "Matrix Direct Message";
 		else platform = `Matrix room "${name}" in space "${parents.reverse().join("/")}"`;
-		console.log(platform);
-		res = await chat((await client.getUserProfile(event.sender)), platform, { message: body }, false);
+		let res = await chat((await client.getUserProfile(event.sender)).displayName, platform, { message: body }, false);
 		if (typeof res === "string") await client.replyText(roomId, event, res);
 	}
 });
