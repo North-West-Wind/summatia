@@ -3,7 +3,7 @@ import * as fs from "fs";
 import fetch from "node-fetch";
 import { getCommands } from "./types/command";
 import { shouldListen } from "./db";
-import { chatDiscord } from "../api";
+import { chatDiscord, isOnline } from "../api";
 
 if (!process.env.OLLAMA_MEMORY_HOST) throw new Error("ollama-memory host not set");
 if (!process.env.DISCORD_TOKEN) throw new Error("bot token not set");
@@ -44,6 +44,12 @@ client.once(Events.ClientReady, async readyClient => {
 
 client.on(Events.MessageCreate, async message => {
 	if (message.author.id == message.client.user.id || message.author.bot && !message.webhookId) return;
+	if (!(await isOnline())) {
+		online = false;
+		setPresence(message.client);
+		return;
+	}
+	const interval = setInterval(() => message.channel.sendTyping(), 10000);
 	let res: boolean | string | undefined;
 	try {
 		if (message.channel.isDMBased()) res = await chatDiscord(message.author.displayName, "Discord Direct Message", message, false);
@@ -66,6 +72,7 @@ client.on(Events.MessageCreate, async message => {
 		console.error(err);
 		online = false;
 	}
+	clearInterval(interval);
 	if (res !== undefined) setPresence(message.client);
 });
 

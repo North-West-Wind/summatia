@@ -1,6 +1,11 @@
 import { Message } from "discord.js";
 import fetch from "node-fetch";
 
+export async function isOnline() {
+	const res = await fetch(process.env.OLLAMA_MEMORY_HOST! + "/check");
+	return res.ok;
+}
+
 export async function chatDiscord(name: string, platform: string, message: Message, noResponse: boolean) {
 	let msg: string | undefined;
 	let imgs: string[] | undefined;
