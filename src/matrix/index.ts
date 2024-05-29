@@ -50,7 +50,7 @@ client.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
 		let platform: string;
 		if (members == 2 && !name) platform = "Matrix Direct Message";
 		else platform = `Matrix room "${name}" in space "${parents.reverse().join("/")}"`;
-		let res = await chat((await client.getUserProfile(event.sender)).displayName, platform, { message: body }, false);
+		let res = await chat((await client.getUserProfile(event.sender)).displayname, platform, { message: body }, false);
 		if (typeof res === "string") await client.replyText(roomId, event, res);
 	}
 });
