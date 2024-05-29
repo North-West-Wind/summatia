@@ -49,7 +49,7 @@ client.on(Events.MessageCreate, async message => {
 		setPresence(message.client);
 		return;
 	}
-	const interval = setInterval(() => message.channel.sendTyping(), 10000);
+	const interval = setInterval(() => message.channel.sendTyping().catch(() => {}), 10000);
 	let res: boolean | string | undefined;
 	try {
 		if (message.channel.isDMBased()) res = await chatDiscord(message.author.displayName, "Discord Direct Message", message, false);

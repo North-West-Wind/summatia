@@ -44,6 +44,7 @@ client.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
 
 	if (body.includes(selfId) || body.toLowerCase().includes("summatia") || members == 2 && !name || replyToMe) {
 		if (!(await isOnline())) return;
+		client.setTyping(roomId, true).catch(() => {}); // nobody cares if you can't set typing
 		let parents: string[] = [];
 		const parentState = states.filter(state => state.type == "m.space.parent").pop();
 		if (parentState) parents = await getRoomParents(client, parentState.state_key);
@@ -52,6 +53,7 @@ client.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
 		else platform = `Matrix room "${name}" in space "${parents.reverse().join("/")}"`;
 		let res = await chat((await client.getUserProfile(event.sender)).displayname, platform, { message: body }, false);
 		if (typeof res === "string") await client.replyText(roomId, event, res);
+		client.setTyping(roomId, false).catch(() => {}); // nobody cares if you can't set typing
 	}
 });
 
