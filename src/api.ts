@@ -32,8 +32,17 @@ export async function chat(name: string, platform: string, content: { message: s
 	};
 	if (content.message) sendObj.message = content.message;
 	if (content.images) sendObj.images = content.images;
-	const res = await fetch(process.env.OLLAMA_MEMORY_HOST! + "/chat/summatia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sendObj) });
-	const json = await res.json();
-	if (json.error) return false;
-	else return noResponse ? true : json.message.content;
+	try {
+		const res = await fetch(process.env.OLLAMA_MEMORY_HOST! + "/chat/summatia", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(sendObj),
+			signal: AbortSignal.timeout(1800_000) // 30 minute timeout
+		});
+		const json = await res.json();
+		if (json.error) return false;
+		else return noResponse ? true : json.message.content;
+	} catch (err) {
+		return false;
+	}
 }
