@@ -3,7 +3,7 @@ import { RoomMessageEventContent } from "matrix-js-sdk/lib/types";
 export type ClientEvent = {
 	content: object;
 	event_id: string;
-	origin_server_ts: string;
+	origin_server_ts: number;
 	room_id: string;
 	sender: string;
 	state_key?: string;
