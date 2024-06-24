@@ -3,6 +3,8 @@ import { SummatiaListeners, SummatiaModule } from ".";
 import { MediaEventContent } from "matrix-js-sdk/lib/types";
 import { RoomMessageEvent } from "../types/events";
 
+if (!process.env.MATRIX_BRIDGE_BOT) throw new Error("bridge bot id not set");
+
 export default class LargeMediaModule extends SummatiaModule {
 	lastMxc: { [roomId: string]: { sender: string, url: string } };
 
@@ -12,7 +14,7 @@ export default class LargeMediaModule extends SummatiaModule {
 	}
 
 	async onMessage(client: MatrixClient, roomId: string, event: RoomMessageEvent) {
-		if (event.content?.msgtype === 'm.notice' && event.sender === await client.getUserId() && event.content.body.includes("Attachment is too large") && this.lastMxc[roomId]) {
+		if (event.content?.msgtype === 'm.notice' && event.sender === process.env.MATRIX_BRIDGE_BOT && event.content.body.includes("Attachment is too large") && this.lastMxc[roomId]) {
 			const msg = `${this.lastMxc[roomId].sender} sent an attachment too large for Discord!\n${process.env.MATRIX_HOMESERVER}/_matrix/media/r0/download/${this.lastMxc[roomId].url.slice(6)}`;
 			await client.sendText(roomId, msg);
 			delete this.lastMxc[roomId];
