@@ -7,9 +7,13 @@ export async function isOnline() {
 }
 
 export async function chatDiscord(name: string, platform: string, message: Message, noResponse: boolean) {
-	let msg: string | undefined;
+	let msg: string | undefined, reply: string | undefined;
 	let imgs: string[] | undefined;
 	if (message.content) msg = message.cleanContent;
+	if (message.reference) {
+		const ref = await message.fetchReference();
+		if (ref.content) reply = ref.cleanContent;
+	}
 	if (message.attachments.size) {
 		const images: string[] = [];
 		for (const attachment of message.attachments.values()) {
@@ -21,11 +25,11 @@ export async function chatDiscord(name: string, platform: string, message: Messa
 		}
 		imgs = images;
 	}
-	return await chat(name, platform, { message: msg!, images: imgs! }, noResponse);
+	return await chat(name, platform, { message: msg!, images: imgs!, reply }, noResponse);
 }
 
-export async function chat(name: string, platform: string, content: { message: string, images?: string[] } | { message?: string, images: string[] }, noResponse: boolean) {
-	let sendObj: { name: string, platform: string, noResponse: boolean, message?: string, images?: string[] } = {
+export async function chat(name: string, platform: string, content: ({ message: string, images?: string[] } | { message?: string, images: string[] }) & { reply?: string }, noResponse: boolean) {
+	let sendObj: { name: string, platform: string, noResponse: boolean, message?: string, reply?: string, images?: string[] } = {
 		name,
 		platform,
 		noResponse
