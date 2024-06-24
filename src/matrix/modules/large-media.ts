@@ -28,8 +28,13 @@ export default class LargeMediaModule extends SummatiaModule {
 
 	async onMessage(client: MatrixClient, roomId: string, event: RoomMessageEvent) {
 		if (event.content?.msgtype === 'm.notice' && event.sender === process.env.MATRIX_BRIDGE_BOT && event.content.body.includes("Attachment is too large") && this.lastMxc[roomId]) {
-			const msg = `${await this.mentionUser(client, this.lastMxc[roomId].sender)} sent an attachment too large for Discord!\n${process.env.MATRIX_HOMESERVER}/_matrix/media/r0/download/${this.lastMxc[roomId].url.slice(6)}`;
-			await client.sendHtmlText(roomId, msg);
+			let rest = ` sent an attachment too large for Discord!\n${process.env.MATRIX_HOMESERVER}/_matrix/media/r0/download/${this.lastMxc[roomId].url.slice(6)}`;
+			await client.sendEvent(roomId, "m.room.message", {
+				body: this.lastMxc[roomId].sender + rest,
+				msgtype: "m.text",
+				format: "org.matrix.custom.html",
+				formatted_body: (await this.mentionUser(client, this.lastMxc[roomId].sender)) + rest
+			});
 			delete this.lastMxc[roomId];
 		} else if (event.content?.msgtype !== 'm.text' && (event.content as MediaEventContent).url)
 			this.lastMxc[roomId] = {
