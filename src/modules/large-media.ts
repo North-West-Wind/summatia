@@ -1,7 +1,7 @@
 import { MatrixClient } from "matrix-bot-sdk";
 import { SummatiaListeners, SummatiaModule } from ".";
 import { MediaEventContent } from "matrix-js-sdk/lib/types";
-import { RoomMessageEvent } from "../types/events";
+import { RoomMessageEvent } from "../matrix/types/events";
 
 if (!process.env.MATRIX_BRIDGE_BOT) throw new Error("bridge bot id not set");
 
@@ -9,7 +9,7 @@ export default class LargeMediaModule extends SummatiaModule {
 	lastMxc: { [roomId: string]: { sender: string, url: string } };
 
 	constructor() {
-		super({ listen: [SummatiaListeners.MESSAGE] });
+		super("large-media", { listen: [SummatiaListeners.MESSAGE] });
 		this.lastMxc = {};
 	}
 

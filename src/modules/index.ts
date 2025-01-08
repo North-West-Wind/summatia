@@ -1,5 +1,6 @@
+import { Message } from "discord.js";
 import { MatrixClient } from "matrix-bot-sdk";
-import { RoomMessageEvent } from "../types/events";
+import { RoomMessageEvent } from "../matrix/types/events";
 
 export enum SummatiaListeners {
 	MESSAGE
@@ -10,13 +11,24 @@ type SummatiaOption = {
 }
 
 export class SummatiaModule {
+	name: string;
 	listen: SummatiaListeners[];
 
-	constructor(options: SummatiaOption) {
+	constructor(name: string, options: SummatiaOption) {
+		this.name = name;
 		this.listen = options.listen;
 	}
+}
 
-	onMessage(client: MatrixClient, roomId: string, event: RoomMessageEvent) { }
+// This must be put after SummatiaModule
+import { Summatia } from "../summatia";
+
+export interface MatrixHandler {
+	onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent): void;
+}
+
+export interface DiscordHandler {
+	onDiscordMessage(summatia: Summatia, message: Message): void;
 }
 
 import AiModule from "./ai";

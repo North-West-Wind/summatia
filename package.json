@@ -15,16 +15,16 @@
   "author": "NorthWestWind",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "discord.js": "^14.15.2",
-    "dotenv": "^16.4.5",
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.7",
     "matrix-bot-sdk": "^0.7.1",
-    "matrix-js-sdk": "^32.4.0",
+    "matrix-js-sdk": "^35.1.0",
     "node-fetch": "^2.7.0",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
-    "@types/node": "^20.12.12",
-    "@types/node-fetch": "^2.6.11",
-    "typescript": "^5.4.5"
+    "@types/node": "^20.17.12",
+    "@types/node-fetch": "^2.6.12",
+    "typescript": "^5.7.2"
   }
 }

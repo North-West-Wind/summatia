@@ -1,12 +1,7 @@
 import "dotenv/config";
+import { Summatia } from "./summatia";
 
-if (process.env.DISCORD_ENABLED == "1") import("./discord");
-if (process.env.MATRIX_ENABLED == "1") import("./matrix");
+const summatia = new Summatia(process.env.MATRIX_ENABLED == "1", process.env.DISCORD_ENABLED == "1");
 
-const internal = {
-	discordId: ""
-};
-export function discordId(id?: string) {
-	if (id !== undefined) internal.discordId = id;
-	return internal.discordId;
-}
+summatia.setup();
+summatia.start();

@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./types/events";
-import { LISTEN_MODULES, SummatiaListeners } from "./modules";
+import { LISTEN_MODULES, SummatiaListeners } from "../modules";
 
 if (!process.env.MATRIX_HOMESERVER) throw new Error("homeserver not set");
 if (!process.env.MATRIX_TOKEN) throw new Error("bot token not set");
