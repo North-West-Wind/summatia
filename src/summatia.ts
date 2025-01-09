@@ -1,10 +1,10 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
-import * as fs from "fs";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./matrix/types/events";
 import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
+import { mkdirSync } from "fs";
 
 // Summatia handles both Matrix and Discord
 export class Summatia {
@@ -25,8 +25,7 @@ export class Summatia {
 		if (!process.env.MATRIX_HOMESERVER) throw new Error("Matrix homeserver not set");
 		if (!process.env.MATRIX_TOKEN) throw new Error("Matrix bot token not set");
 
-		if (!fs.existsSync("runtime") || !fs.statSync("runtime").isDirectory()) fs.mkdirSync("runtime");
-		if (!fs.existsSync("runtime/crypto") || !fs.statSync("runtime/crypto").isDirectory()) fs.mkdirSync("runtime/crypto");
+		mkdirSync("runtime/crypto", { recursive: true });
 
 		const storage = new SimpleFsStorageProvider("runtime/matrix.json");
 		const cryptoStorage = new RustSdkCryptoStorageProvider("runtime/crypto");
@@ -36,7 +35,7 @@ export class Summatia {
 		AutojoinUpgradedRoomsMixin.setupOnClient(this.matrix);
 
 		// discord client init
-if (!process.env.DISCORD_CLIENT_ID) throw new Error("Discord client ID not set");
+		if (!process.env.DISCORD_CLIENT_ID) throw new Error("Discord client ID not set");
 		if (!process.env.DISCORD_TOKEN) throw new Error("Discord bot token not set");
 
 		this.discord = new Client({
@@ -53,11 +52,11 @@ if (!process.env.DISCORD_CLIENT_ID) throw new Error("Discord client ID not set")
 		});
 	}
 
-	matrixLog(...things: string[]) {
+	matrixLog(...things: any[]) {
 		console.log("[Matrix]", ...things);
 	}
 
-	discordLog(...things: string[]) {
+	discordLog(...things: any[]) {
 		console.log("[Discord]", ...things);
 	}
 
@@ -120,24 +119,23 @@ if (!process.env.DISCORD_CLIENT_ID) throw new Error("Discord client ID not set")
 
 	async refreshDiscordCommands() {
 		// application command registration
-		const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 		const commands = Array.from(this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION]?.values() || []).map(cmd => (cmd as SummatiaCommandModule).getSlashCommandBuilder().toJSON());
 		try {
-			console.log(`Started refreshing ${commands.length} application (/) commands.`);
-	
+			this.discordLog(`Started refreshing ${commands.length} application (/) commands.`);
+
 			let data: unknown;
 			if (process.env.GUILD_ID)
-				data = await rest.put(
+				data = await this.discord.rest.put(
 					Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID!, process.env.GUILD_ID),
 					{ body: commands },
 				);
 			else
-				data = await rest.put(
+				data = await this.discord.rest.put(
 					Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!),
 					{ body: commands },
 				);
 	
-			console.log(`Successfully reloaded ${(data as []).length} application (/) commands.`);
+			this.discordLog(`Successfully reloaded ${(data as []).length} application (/) commands.`);
 		} catch (error) {
 			// And of course, make sure you catch and log any errors!
 			console.error(error);

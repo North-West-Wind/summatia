@@ -1,11 +1,15 @@
 import { Snowflake } from "discord.js";
+import { mkdirSync } from "fs";
 import { Database, verbose } from "sqlite3";
+import { ChannelBridgeStatus } from "./matrix/types/bridge";
 
 export class SummatiaDatabase {
 	private db: Database;
+	private mautrixDb?: Database;
 	private ready: boolean;
 
 	constructor() {
+		mkdirSync("runtime", { recursive: true });
 		const sqlite3 = verbose();
 		this.db = new sqlite3.Database("runtime/discord.db");
 		this.ready = false;
@@ -19,6 +23,10 @@ export class SummatiaDatabase {
 			});
 			else this.ready = true;
 		});
+
+		if (process.env.MAUTRIX_DATABASE) {
+			this.mautrixDb = new sqlite3.Database(`file:${process.env.MAUTRIX_DATABASE}?mode=readonly`);
+		}
 	}
 
 	addListen(channel: Snowflake, chance: number) {
@@ -52,6 +60,17 @@ export class SummatiaDatabase {
 				if (err) return rej(err);
 				if (!row)	res(-1);
 				else res(row.chance);
+			});
+		});
+	}
+
+	isChannelBridged(dcid: Snowflake) {
+		if (!this.mautrixDb) return ChannelBridgeStatus.UNKNOWN;
+		return new Promise<ChannelBridgeStatus>((res, rej) => {
+			this.mautrixDb?.get("SELECT mxid FROM portal WHERE dcid = ?", [dcid], (err, row?: { mxid?: string }) => {
+				if (err) return rej(err);
+				if (!row?.mxid) res(ChannelBridgeStatus.BRIDGED);
+				else res(ChannelBridgeStatus.UNBRIDGED);
 			});
 		});
 	}
