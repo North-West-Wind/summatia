@@ -149,11 +149,6 @@ export class Summatia {
 		this.discordLog(`${this.discord.user.tag} is ${status}`);
 	}
 
-	isChannelBridged(channelId: Snowflake) {
-		if (!this.useMatrix) return false;
-		
-	}
-
 	async getRoomParents(roomId: string) {
 		if (!this.useMatrix) return [];
 		const states = await this.matrix.getRoomState(roomId);
@@ -168,5 +163,30 @@ export class Summatia {
 	getDiscordId() {
 		if (!this.useDiscord) return undefined;
 		return this.discord.user.id;
+	}
+
+	async isMatrixInChannel(channelId: Snowflake) {
+		if (!this.useMatrix) return false;
+		try {
+			const mxid = await this.database.getChannelRoom(channelId);
+			if (!mxid) return false;
+			const rooms = await this.matrix.getJoinedRooms();
+			return rooms.some(id => id == mxid);
+		} catch (err) {
+			return false;
+		}
+	}
+
+	async isDiscordInRoom(roomId: string) {
+		if (!this.useDiscord) return false;
+		try {
+			const dcid = await this.database.getRoomChannel(roomId);
+			if (!dcid) return false;
+			const mxUser = "@discord_" + this.getDiscordId() + ":matrix.northwestw.in";
+			const members = await this.matrix.getRoomMembers(roomId);
+			return members.some(member => member.stateKey == mxUser);
+		} catch (err) {
+			return false;
+		}
 	}
 }

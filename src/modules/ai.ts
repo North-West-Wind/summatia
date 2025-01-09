@@ -13,23 +13,19 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
 		if (event.content?.msgtype !== 'm.text') return;
+		if (await summatia.isDiscordInRoom(roomId)) return;
 	
-		let body = event.content.body, bridged = false;
+		let body = event.content.body;
 	
 		const states = await summatia.matrix.getRoomState(roomId);
 		let name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
 		// get the number of members in the room
 		let members = (states.map(state => {
 			if (state.type != "m.room.member") return 0;
-			if (state.content.membership == "join") {
-				if (state.state_key === "@discord_" + summatia.getDiscordId() + ":matrix.northwestw.in") bridged = true;
-				return 1;
-			}
+			if (state.content.membership == "join") return 1;
 			if (state.content.membership == "leave") return -1;
 			return 0;
 		}) as number[]).reduce((a, b) => a + b);
-	
-		if (bridged) return;
 	
 		const selfId = await summatia.matrix.getUserId();
 		let replyToMe = false;
@@ -83,8 +79,10 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 	}
 
 	async onDiscordMessage(summatia: Summatia, message: OmitPartialGroupDMChannel<Message<boolean>>) {
-		if (message.author.id == message.client.user.id || message.author.bot && !message.webhookId) return;
-		if (!(await this.isOnline())) return;
+		if (message.author.id == message.client.user.id ||
+				message.author.bot && !message.webhookId ||
+				await summatia.isMatrixInChannel(message.channelId) ||
+				!(await this.isOnline())) return;
 		const interval = setInterval(() => message.channel.sendTyping().catch(() => {}), 10000);
 		let res: boolean | string | undefined;
 		try {

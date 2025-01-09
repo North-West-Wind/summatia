@@ -64,13 +64,24 @@ export class SummatiaDatabase {
 		});
 	}
 
-	isChannelBridged(dcid: Snowflake) {
-		if (!this.mautrixDb) return ChannelBridgeStatus.UNKNOWN;
-		return new Promise<ChannelBridgeStatus>((res, rej) => {
-			this.mautrixDb?.get("SELECT mxid FROM portal WHERE dcid = ?", [dcid], (err, row?: { mxid?: string }) => {
+	getChannelRoom(channelId: Snowflake) {
+		if (!this.mautrixDb) return undefined;
+		return new Promise<string>((res, rej) => {
+			this.mautrixDb?.get("SELECT mxid FROM portal WHERE dcid = ?", [channelId], (err, row?: { mxid?: string }) => {
 				if (err) return rej(err);
-				if (!row?.mxid) res(ChannelBridgeStatus.BRIDGED);
-				else res(ChannelBridgeStatus.UNBRIDGED);
+				if (!row?.mxid) res("");
+				else res(row.mxid);
+			});
+		});
+	}
+
+	getRoomChannel(roomId: string) {
+		if (!this.mautrixDb) return undefined;
+		return new Promise<string>((res, rej) => {
+			this.mautrixDb?.get("SELECT dcid FROM portal WHERE mxid = ?", [roomId], (err, row?: { dcid?: string }) => {
+				if (err) return rej(err);
+				if (!row?.dcid) res("");
+				else res(row.dcid);
 			});
 		});
 	}
