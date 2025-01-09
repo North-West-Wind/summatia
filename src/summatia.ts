@@ -1,8 +1,10 @@
-import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, Snowflake } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import * as fs from "fs";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./matrix/types/events";
-import { LISTEN_MODULES, SummatiaListeners, SummatiaModule } from "./modules";
+import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from "./modules";
+import { SummatiaDatabase } from "./db";
+import { SummatiaCommandModule } from "./modules/commands";
 
 // Summatia handles both Matrix and Discord
 export class Summatia {
@@ -10,16 +12,18 @@ export class Summatia {
 	discord: Client<true>;
 	useMatrix: boolean;
 	useDiscord: boolean;
-	modules: Map<string, SummatiaModule>;
+	modules: Partial<{ -readonly [key in keyof typeof SummatiaListeners]: Map<string, SummatiaModule> }>;
+	database: SummatiaDatabase;
 
 	constructor(useMatrix: boolean, useDiscord: boolean) {
 		this.useMatrix = useMatrix;
 		this.useDiscord = useDiscord;
-		this.modules = new Map();
+		this.modules = {};
+		this.database = new SummatiaDatabase();
 
 		// matrix client init
-		if (!process.env.MATRIX_HOMESERVER) throw new Error("homeserver not set");
-		if (!process.env.MATRIX_TOKEN) throw new Error("bot token not set");
+		if (!process.env.MATRIX_HOMESERVER) throw new Error("Matrix homeserver not set");
+		if (!process.env.MATRIX_TOKEN) throw new Error("Matrix bot token not set");
 
 		if (!fs.existsSync("runtime") || !fs.statSync("runtime").isDirectory()) fs.mkdirSync("runtime");
 		if (!fs.existsSync("runtime/crypto") || !fs.statSync("runtime/crypto").isDirectory()) fs.mkdirSync("runtime/crypto");
@@ -32,6 +36,9 @@ export class Summatia {
 		AutojoinUpgradedRoomsMixin.setupOnClient(this.matrix);
 
 		// discord client init
+if (!process.env.DISCORD_CLIENT_ID) throw new Error("Discord client ID not set");
+		if (!process.env.DISCORD_TOKEN) throw new Error("Discord bot token not set");
+
 		this.discord = new Client({
 			intents: [
 				GatewayIntentBits.Guilds,
@@ -55,27 +62,38 @@ export class Summatia {
 	}
 
 	addModule(module: SummatiaModule) {
-		this.modules.set(module.name, module);
+		for (const listen of module.listen) {
+			if (!this.modules[listen]) this.modules[listen] = new Map();
+			this.modules[listen].set(module.name, module);
+		}
 	}
 
 	// create non-once event listeners
 	setup() {
-		this.matrix.on("room.message", (roomId: string, event: RoomMessageEvent) => {
-			LISTEN_MODULES[SummatiaListeners.MESSAGE]?.forEach(module => module.onMessage(this.matrix, roomId, event));
+		this.matrix.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
+			// don't listen to self in bridged channels
+			const selfId = await this.matrix.getUserId();
+			if (event.sender === selfId || event.sender === "@discord_" + this.getDiscordId() + ":matrix.northwestw.in") return;
+
+			this.modules[SummatiaListeners.MATRIX_MESSAGE]
+				?.forEach(module => (module as unknown as MatrixHandler).onMatrixMessage(this, roomId, event));
 		});
 
 		this.discord.on(Events.MessageCreate, async message => {
 			// don't listen to self, other bots or webhooks
 			if (message.author.id == message.client.user.id || message.author.bot && !message.webhookId) return;
+
+			this.modules[SummatiaListeners.DISCORD_MESSAGE]
+				?.forEach(module => (module as unknown as DiscordHandler).onDiscordMessage(this, message));
 		});
 		
 		this.discord.on(Events.InteractionCreate, async interaction => {
-			if (!interaction.isChatInputCommand()) return;
-			const command = getCommands().get(interaction.commandName);
-			if (command) {
+			if (interaction.isChatInputCommand()) {
+				const command = this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION]?.get(interaction.commandName);
+				if (!command) return;
 				try {
-					await command.execute(interaction);
-				} catch(err) {
+					await (command as SummatiaCommandModule).onDiscordCommandInteraction(this, interaction);
+				} catch (err) {
 					console.error(err);
 					if (interaction.replied || interaction.deferred) await interaction.followUp({ content: "It didn't work :(", ephemeral: true });
 					else await interaction.reply({ content: "It didn't work :(", ephemeral: true });
@@ -97,6 +115,32 @@ export class Summatia {
 			});
 
 			this.discord.login(process.env.DISCORD_TOKEN);
+		}
+	}
+
+	async refreshDiscordCommands() {
+		// application command registration
+		const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
+		const commands = Array.from(this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION]?.values() || []).map(cmd => (cmd as SummatiaCommandModule).getSlashCommandBuilder().toJSON());
+		try {
+			console.log(`Started refreshing ${commands.length} application (/) commands.`);
+	
+			let data: unknown;
+			if (process.env.GUILD_ID)
+				data = await rest.put(
+					Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID!, process.env.GUILD_ID),
+					{ body: commands },
+				);
+			else
+				data = await rest.put(
+					Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!),
+					{ body: commands },
+				);
+	
+			console.log(`Successfully reloaded ${(data as []).length} application (/) commands.`);
+		} catch (error) {
+			// And of course, make sure you catch and log any errors!
+			console.error(error);
 		}
 	}
 

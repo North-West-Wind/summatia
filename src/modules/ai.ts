@@ -1,23 +1,24 @@
-import { MatrixClient } from "matrix-bot-sdk";
+import { AbortSignal } from "node-fetch/externals";
 import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from ".";
 import { RoomMessageEvent } from "../matrix/types/events";
 import { Summatia } from "../summatia";
 import { Message, MessageType, OmitPartialGroupDMChannel } from "discord.js";
+import fetch from "node-fetch";
 
 export default class AiModule extends SummatiaModule implements MatrixHandler, DiscordHandler {
 	constructor() {
-		super("ai", { listen: [SummatiaListeners.MESSAGE] });
+		if (!process.env.OLLAMA_MEMORY_HOST) throw new Error("ollama-memory host not set");
+		super("ai", { listen: [SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_MESSAGE] });
 	}
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
 		if (event.content?.msgtype !== 'm.text') return;
-		const selfId = await summatia.matrix.getUserId();
-		if (event.sender === selfId || event.sender === "@discord_" + summatia.getDiscordId() + ":matrix.northwestw.in") return;
 	
 		let body = event.content.body, bridged = false;
 	
 		const states = await summatia.matrix.getRoomState(roomId);
 		let name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
+		// get the number of members in the room
 		let members = (states.map(state => {
 			if (state.type != "m.room.member") return 0;
 			if (state.content.membership == "join") {
@@ -30,6 +31,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 	
 		if (bridged) return;
 	
+		const selfId = await summatia.matrix.getUserId();
 		let replyToMe = false;
 		let reply: string | undefined;
 		const replyEventId = (event.content["m.relates_to"] as any)?.["m.in_reply_to"]?.event_id;
@@ -56,7 +58,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 				console.error(err);
 			}
 		}
-	
+
 		if (body.includes(selfId) || body.toLowerCase().includes("summatia") || members == 2 && !name || replyToMe) {
 			if (!(await this.isOnline())) return;
 			summatia.matrix.setTyping(roomId, true).catch(() => {}); // nobody cares if you can't set typing
@@ -91,7 +93,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 				message.content.toLowerCase().includes("summatia") ||
 				message.type == MessageType.Reply && (await message.channel.messages.fetch(message.reference?.messageId!)).author.id == message.client.user.id) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
 			else {
-				const chance = await shouldListen(message.channelId);
+				const chance = await summatia.database.shouldListen(message.channelId);
 				if (chance >= 0) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, Math.random() * 100 > chance);
 			}
 	
@@ -121,7 +123,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(sendObj),
-				signal: AbortSignal.timeout(1800_000) // 30 minute timeout
+				signal: AbortSignal.timeout(1800_000) as AbortSignal // 30 minute timeout
 			});
 			const json = await res.json();
 			if (json.error) return false;
