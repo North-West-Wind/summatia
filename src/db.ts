@@ -14,18 +14,36 @@ export class SummatiaDatabase {
 		this.ready = false;
 
 		// create table if not exist
-		this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='listen'", (err, row) => {
-			if (err) console.error(err);
-			if (!row) this.db.run("CREATE TABLE listen (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)", (err) => {
-				if (err) console.error(err);
-				else this.ready = true;
-			});
-			else this.ready = true;
-		});
+		(async () => {
+			try {
+				await this.createIfNotExist("listen", "CREATE TABLE listen (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)");
+				await this.createIfNotExist("linkSpam", "CREATE TABLE linkSpam (user varchar(32) NOT NULL, guild varchar(32) NOT NULL, threat INTEGER NOT NULL, PRIMARY KEY(user, guild))")
+			} catch (err) {
+				console.log("Failed to initialize database");
+				console.error(err);
+			}
+		})();
 
 		if (process.env.MAUTRIX_DATABASE) {
 			this.mautrixDb = new sqlite3.Database(`file:${process.env.MAUTRIX_DATABASE}?mode=readonly`);
 		}
+	}
+
+	private createIfNotExist(name: string, creationQuery: string) {
+		return new Promise<void>((res, rej) => {
+			this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [name], (err, row) => {
+				if (err) rej(err);
+				else if (!row) this.db.run(creationQuery, (err) => {
+					if (err) rej(err);
+					else res();
+				});
+				else res();
+			});
+		});
+	}
+
+	isReady() {
+		return this.ready;
 	}
 
 	addListen(channel: Snowflake, chance: number) {
@@ -81,6 +99,31 @@ export class SummatiaDatabase {
 				if (err) return rej(err);
 				if (!row?.dcid) res("");
 				else res(row.dcid);
+			});
+		});
+	}
+
+	getLinkSpamUsers() {
+		return new Promise<{ user: Snowflake, guild: Snowflake, threat: number }[]>((res, rej) => {
+			this.db.all("SELECT * FROM linkSpam", (err, rows?: { user: string, guild: string, threat: number }[]) => {
+				if (err) rej(err);
+				else res(rows || []);
+			});
+		});
+	}
+
+	setLinkSpamUser(userId: string, guildId: string, threat: number) {
+		return new Promise<void>((res, rej) => {
+			this.db.get("SELECT user FROM linkSpam WHERE user = ? AND guild = ?", [userId, guildId], (err, row?) => {
+				if (err) rej(err);
+				else if (row) this.db.run("UPDATE linkSpam SET COLUMN threat = ? WHERE user = ? AND guild = ?", [threat, userId, guildId], (err) => {
+					if (err) rej(err);
+					else res();
+				});
+				else this.db.run("INSERT INTO linkSpam VALUES(?, ?, ?)", [userId, guildId, threat], (err) => {
+					if (err) rej(err);
+					else res();
+				});
 			});
 		});
 	}

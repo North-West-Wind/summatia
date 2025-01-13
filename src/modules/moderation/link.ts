@@ -27,8 +27,13 @@ export class LinkModerationModule extends ModerationModule implements Initialize
 		this.guildUserLinks = new Map();
 	}
 
-	init(summatia: Summatia) {
-		
+	async init(summatia: Summatia) {
+		for (const entry of await summatia.database.getLinkSpamUsers()) {
+			const userLink = this.defaultUserLink(entry.user);
+			userLink.threat = entry.threat;
+			if (!this.guildUserLinks.has(entry.guild)) this.guildUserLinks.set(entry.guild, new Map([[entry.user, userLink]]));
+			else this.guildUserLinks.get(entry.guild)!.set(entry.user, userLink);
+		}
 	}
 
 	async onDiscordMessage(summatia: Summatia, message: Message) {
@@ -60,9 +65,9 @@ export class LinkModerationModule extends ModerationModule implements Initialize
 					for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
 
 			if (userLink.channels.size >= THRESHOLD || Array.from(counts.values()).some(count => count >= THRESHOLD)) {
-				userLink.threat++;
+				summatia.database.setLinkSpamUser(message.author.id, message.guildId!, ++userLink.threat);
 				if (userLink.unthreatTimeout) clearTimeout(userLink.unthreatTimeout);
-				userLink.unthreatTimeout = setTimeout(() => userLink.threat--, THREAT_DURATION * userLink.threat);
+				userLink.unthreatTimeout = setTimeout(() => summatia.database.setLinkSpamUser(message.author.id, message.guildId!, --userLink.threat), THREAT_DURATION * userLink.threat);
 
 				// delete messages
 				for (const map of userLink.channels.values())

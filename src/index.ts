@@ -19,6 +19,7 @@ import { LinkModerationModule } from "./modules/moderation/link";
 	summatia.addModule(new LinkModerationModule());
 	
 	await summatia.refreshDiscordCommands();
+	await summatia.waitDatabase();
 	
 	summatia.setup();
 	summatia.start();

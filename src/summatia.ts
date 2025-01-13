@@ -67,6 +67,11 @@ export class Summatia {
 		}
 	}
 
+	async waitDatabase() {
+		while (!this.database.isReady())
+			await new Promise<void>((res) => setTimeout(res, 100));
+	}
+
 	// create non-once event listeners
 	setup() {
 		this.matrix.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
