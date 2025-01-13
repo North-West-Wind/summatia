@@ -19,6 +19,7 @@
     "matrix-bot-sdk": "^0.7.1",
     "matrix-js-sdk": "^35.1.0",
     "node-fetch": "^2.7.0",
+    "normalize-url": "^8.0.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

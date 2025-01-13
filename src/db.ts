@@ -1,7 +1,6 @@
 import { Snowflake } from "discord.js";
 import { mkdirSync } from "fs";
 import { Database, verbose } from "sqlite3";
-import { ChannelBridgeStatus } from "./matrix/types/bridge";
 
 export class SummatiaDatabase {
 	private db: Database;

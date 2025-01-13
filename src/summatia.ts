@@ -1,7 +1,7 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./matrix/types/events";
-import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from "./modules";
+import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
@@ -99,6 +99,10 @@ export class Summatia {
 				}
 			}
 		});
+
+		// init modules with INIT
+		for (const module of this.modules[SummatiaListeners.INIT]?.values() || [])
+			(module as unknown as Initialized).init(this);
 	}
 
 	// login and stuff
