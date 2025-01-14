@@ -8,17 +8,23 @@ import { mkdirSync } from "fs";
 
 // Summatia handles both Matrix and Discord
 export class Summatia {
+	readonly prefix: string;
 	matrix: MatrixClient;
 	discord: Client<true>;
 	useMatrix: boolean;
 	useDiscord: boolean;
-	modules: Partial<{ -readonly [key in keyof typeof SummatiaListeners]: Map<string, SummatiaModule> }>;
+	modules: { -readonly [key in keyof typeof SummatiaListeners]: Map<string, SummatiaModule> };
 	database: SummatiaDatabase;
 
-	constructor(useMatrix: boolean, useDiscord: boolean) {
+	constructor(prefix: string, useMatrix: boolean, useDiscord: boolean) {
+		this.prefix = prefix;
 		this.useMatrix = useMatrix;
 		this.useDiscord = useDiscord;
-		this.modules = {};
+		const modules: Partial<typeof this.modules> = {};
+		let listener: keyof typeof SummatiaListeners;
+		for (listener in SummatiaListeners)
+			modules[listener] = new Map();
+		this.modules = modules as typeof this.modules;
 		this.database = new SummatiaDatabase();
 
 		// matrix client init
@@ -93,7 +99,7 @@ export class Summatia {
 		
 		this.discord.on(Events.InteractionCreate, async interaction => {
 			if (interaction.isChatInputCommand()) {
-				const command = this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION]?.get(interaction.commandName);
+				const command = this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION].get(interaction.commandName);
 				if (!command) return;
 				try {
 					await (command as SummatiaCommandModule).onDiscordCommandInteraction(this, interaction);
@@ -106,7 +112,7 @@ export class Summatia {
 		});
 
 		// init modules with INIT
-		for (const module of this.modules[SummatiaListeners.INIT]?.values() || [])
+		for (const module of this.modules[SummatiaListeners.INIT].values() || [])
 			(module as unknown as Initialized).init(this);
 	}
 
@@ -128,7 +134,7 @@ export class Summatia {
 
 	async refreshDiscordCommands() {
 		// application command registration
-		const commands = Array.from(this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION]?.values() || []).map(cmd => (cmd as SummatiaCommandModule).getSlashCommandBuilder().toJSON());
+		const commands = Array.from(this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION].values() || []).map(cmd => (cmd as SummatiaCommandModule).getSlashCommandBuilder(this).toJSON());
 		try {
 			this.discordLog(`Started refreshing ${commands.length} application (/) commands.`);
 

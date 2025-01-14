@@ -1,19 +1,28 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, SlashCommandIntegerOption } from "discord.js";
-import { SummatiaCommandModule } from "../commands";
+import { SummatiaCommandHelpModule, SummatiaCommandModule } from "../commands";
 import { Summatia } from "../../summatia";
 import { RoomMessageEvent } from "../../matrix/types/events";
+import { SummatiaListeners } from "..";
 
-export default class ListenCommand extends SummatiaCommandModule {
+export default class ListenCommand extends SummatiaCommandHelpModule {
 	constructor() {
-		super("listen");
+		super("listen", { listen: [SummatiaListeners.HELP_DISCORD] });
+	}
+
+	description() {
+		return "Allows me to listen to your conversations."
+	}
+
+	examples() {
+		return ["listen"];
 	}
 
 	getSlashCommandBuilder() {
 		const data = new SlashCommandBuilder()
 			.setName(this.name)
-			.setDescription("Make Summatia listen to this channel.");
+			.setDescription(this.description());
 
-		data.addIntegerOption(new SlashCommandIntegerOption().setName("chance").setDescription("Chance of Summatia responding.").setMinValue(0).setMaxValue(100).setRequired(true));
+		data.addIntegerOption(new SlashCommandIntegerOption().setName("chance").setDescription("Chance of responding.").setMinValue(0).setMaxValue(100).setRequired(true));
 		return data;
 	}
 

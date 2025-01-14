@@ -2,7 +2,15 @@ import { Message } from "discord.js";
 import { RoomMessageEvent } from "../matrix/types/events";
 
 export enum SummatiaListeners {
+	// called before starting in setup
 	INIT,
+	
+	// used for the "help" command. Matrix or Discord makes a feature only appear on MX/DC. Passing none makes it appears on both.
+	HELP,
+	HELP_MATRIX,
+	HELP_DISCORD,
+
+	// listen to Matrix or Discord events
 	MATRIX_MESSAGE,
 	DISCORD_MESSAGE,
 	DISCORD_COMMAND_INTERACTION,
@@ -30,9 +38,14 @@ export interface Initialized {
 }
 
 export interface MatrixHandler {
-	onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent): void;
+	onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent): any;
 }
 
 export interface DiscordHandler {
-	onDiscordMessage(summatia: Summatia, message: Message): void;
+	onDiscordMessage(summatia: Summatia, message: Message): any;
+}
+
+export interface Helpful {
+	description(): string;
+	examples(): string[];
 }

@@ -1,18 +1,26 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { SummatiaCommandModule } from "../commands";
+import { SummatiaCommandHelpModule, SummatiaCommandModule } from "../commands";
 import { Summatia } from "../../summatia";
 import { RoomMessageEvent } from "../../matrix/types/events";
+import { SummatiaListeners } from "..";
 
-export default class UnlistenCommand extends SummatiaCommandModule {
-
+export default class UnlistenCommand extends SummatiaCommandHelpModule {
 	constructor() {
-		super("unlisten");
+		super("unlisten", { listen: [SummatiaListeners.HELP_DISCORD] });
+	}
+
+	description() {
+		return "Stops me from listening to this channel.";
+	}
+
+	examples() {
+		return ["unlisten"];
 	}
 
 	getSlashCommandBuilder() {
 		return new SlashCommandBuilder()
 			.setName(this.name)
-			.setDescription("Stop Summatia from listening to this channel.");
+			.setDescription(this.description());
 	}
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {

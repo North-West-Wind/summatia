@@ -7,7 +7,7 @@ import UnlistenCommand from "./modules/commands/unlisten";
 import { LinkModerationModule } from "./modules/moderation/link";
 
 (async () => {
-	const summatia = new Summatia(process.env.MATRIX_DISABLED == "1", process.env.DISCORD_DISABLED == "1");
+	const summatia = new Summatia(":> ", process.env.MATRIX_DISABLED == "1", process.env.DISCORD_DISABLED == "1");
 	
 	// add modules
 	//summatia.addModule(new AiModule());

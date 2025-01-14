@@ -30,7 +30,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 		const selfId = await summatia.matrix.getUserId();
 		let replyToMe = false;
 		let reply: string | undefined;
-		const replyEventId = (event.content["m.relates_to"] as any)?.["m.in_reply_to"]?.event_id;
+		const replyEventId = (event.content["m.relates_to"] as any)?.["m.in_reply_to"].event_id;
 		if (replyEventId) {
 			try {
 				replyToMe = (await summatia.matrix.getEvent(roomId, replyEventId))?.sender === selfId;
