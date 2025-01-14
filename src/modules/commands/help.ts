@@ -3,10 +3,14 @@ import { Helpful, MatrixHandler, SummatiaListeners } from "..";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
+import MarkdownIt from "markdown-it";
 
 export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHandler {
+	markdown: MarkdownIt;
+
 	constructor() {
 		super("help", { listen: [SummatiaListeners.MATRIX_MESSAGE] });
+		this.markdown = new MarkdownIt();
 	}
 
 	description() {
@@ -46,7 +50,7 @@ export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHand
 		} else {
 			if (!this.getDiscordModules(summatia).includes(feature)) return await interaction.reply(`I don't know what ${feature} is :<`);
 			const module = summatia.modules[SummatiaListeners.HELP].get(feature) as unknown as Helpful;
-			let tbSent = `# ${feature}\n${module.description()}`;
+			let tbSent = `# /${feature}\n${module.description()}`;
 			for (const example of module.examples()) tbSent += `\n- ${example}`;
 			await interaction.reply(tbSent);
 		}
@@ -56,15 +60,16 @@ export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHand
 		if (event.content.msgtype != "m.text" || !event.content.body.startsWith(summatia.prefix + this.name)) return;
 		const feature = event.content.body.slice(summatia.prefix.length).split(/\s+/)[1];
 		if (!feature) {
-			await summatia.matrix.replyText(roomId, event, "Hi! I'm Summatia :>\n" +
-				"I do a lot of stuff. You can check them out by `/help <feature>`.\n" + 
+			const html = this.markdown.render("Hi! I'm Summatia :>  \n" +
+				`I do a lot of stuff. You can check them out by \`${summatia.prefix}help <feature>\`.  \n` + 
 				"Current features: " + this.getMatrixModules(summatia).map(name => `\`${name}\``).join(", "));
+			await summatia.matrix.replyHtmlText(roomId, event, html);
 		} else {
 			if (!this.getMatrixModules(summatia).includes(feature)) return await summatia.matrix.replyText(roomId, event, `I don't know what ${feature} is :<`);
 			const module = summatia.modules[SummatiaListeners.HELP].get(feature) as unknown as Helpful;
-			let tbSent = `# ${feature}\n${module.description()}`;
+			let tbSent = `# ${summatia.prefix}${feature}\n${module.description()}`;
 			for (const example of module.examples()) tbSent += `\n- ${example}`;
-			await summatia.matrix.replyText(roomId, event, tbSent);
+			await summatia.matrix.replyHtmlText(roomId, event, this.markdown.render(tbSent));
 		}
 	}
 

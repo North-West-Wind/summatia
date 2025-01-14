@@ -18,6 +18,7 @@ export class SummatiaDatabase {
 			try {
 				await this.createIfNotExist("listen", "CREATE TABLE listen (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)");
 				await this.createIfNotExist("linkSpam", "CREATE TABLE linkSpam (user varchar(32) NOT NULL, guild varchar(32) NOT NULL, threat INTEGER NOT NULL, PRIMARY KEY(user, guild))")
+				this.ready = true;
 			} catch (err) {
 				console.log("Failed to initialize database");
 				console.error(err);

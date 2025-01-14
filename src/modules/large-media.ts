@@ -1,30 +1,25 @@
 import { MatrixClient } from "matrix-bot-sdk";
-import { MatrixHandler, SummatiaListeners, SummatiaModule } from ".";
+import { Helpful, MatrixHandler, SummatiaListeners, SummatiaModule } from ".";
 import { MediaEventContent } from "matrix-js-sdk/lib/types";
 import { RoomMessageEvent } from "../matrix/types/events";
 import { Summatia } from "../summatia";
 
 if (!process.env.MATRIX_BRIDGE_BOT) throw new Error("bridge bot id not set");
 
-export default class LargeMediaModule extends SummatiaModule implements MatrixHandler {
+export default class LargeMediaModule extends SummatiaModule implements MatrixHandler, Helpful {
 	lastMxc: { [roomId: string]: { sender: string, url: string } };
 
 	constructor() {
-		super("large-media", { listen: [SummatiaListeners.MATRIX_MESSAGE] });
+		super("large-media", { listen: [SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.HELP, SummatiaListeners.HELP_MATRIX] });
 		this.lastMxc = {};
 	}
 
-	async mentionUser(client: MatrixClient, userId: string) {
-		try {
-			if (userId) {
-				const profile = await client.getUserProfile(userId);
-				if (profile)
-					return `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">@${profile.displayname}</a>`;
-			}
-		} catch (err) {
-			console.error(err);
-		}
-		return "Somebody";
+	description() {
+		return "Automatically attach links for files too large for Discord but not Matrix."
+	}
+
+	examples() {
+		return [];
 	}
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
@@ -42,5 +37,18 @@ export default class LargeMediaModule extends SummatiaModule implements MatrixHa
 				sender: event.sender,
 				url: (event.content as MediaEventContent).url!
 			}
+	}
+
+	private async mentionUser(client: MatrixClient, userId: string) {
+		try {
+			if (userId) {
+				const profile = await client.getUserProfile(userId);
+				if (profile)
+					return `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">@${profile.displayname}</a>`;
+			}
+		} catch (err) {
+			console.error(err);
+		}
+		return "Somebody";
 	}
 }

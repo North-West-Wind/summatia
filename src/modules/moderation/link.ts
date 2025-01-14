@@ -1,8 +1,8 @@
 import { Message, Snowflake } from "discord.js";
 import { Summatia } from "../../summatia";
 import { ModerationModule } from "../moderation";
-import normalizeUrl from "normalize-url";
 import { Initialized, SummatiaListeners } from "..";
+import { TidyURL } from "tidy-url";
 
 const THRESHOLD = 5, WINDOW_DURATION = 30_000, TIMEOUT_DURATION = 60_000, KICK_THREAT = 5, THREAT_DURATION = 24 * 60 * 60 * 1000;
 
@@ -48,7 +48,7 @@ export class LinkModerationModule extends ModerationModule implements Initialize
 			// add channel id to set
 			if (!userLink.channels.has(message.channelId)) userLink.channels.set(message.channelId, new Map());
 			// add message and urls to map, urls are normalized
-			const urls = message.content.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => normalizeUrl(url));
+			const urls = message.content.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => TidyURL.clean(url).url);
 			userLink.channels.get(message.channelId)!.set(message.id, { message, urls });
 			// clear old timeout if exists
 			if (userLink.timeouts.has(message.channelId)) userLink.timeouts.get(message.channelId)!.refresh();

@@ -112,12 +112,16 @@ export class Summatia {
 		});
 
 		// init modules with INIT
-		for (const module of this.modules[SummatiaListeners.INIT].values() || [])
+		for (const module of this.modules[SummatiaListeners.INIT].values() || []) {
+			console.log(`Initializing ${module.name}`);
 			(module as unknown as Initialized).init(this);
+		}
+
+		console.log("Finished setup");
 	}
 
 	// login and stuff
-	start() {
+	async start() {
 		if (this.useMatrix)
 			this.matrix.start()
 				.then(async () => this.matrixLog(`${await this.matrix!.getUserId()} is ready!`));
@@ -125,7 +129,7 @@ export class Summatia {
 		if (this.useDiscord) {
 			this.discord.once(Events.ClientReady, async readyClient => {
 				this.discordLog(`${readyClient.user.tag} is ready!`);
-				this.setDiscordPresence("online")
+				this.setDiscordPresence("online");
 			});
 
 			this.discord.login(process.env.DISCORD_TOKEN);
@@ -133,7 +137,10 @@ export class Summatia {
 	}
 
 	async refreshDiscordCommands() {
+		if (!this.useDiscord) return;
+
 		// application command registration
+		this.discord.rest.setToken(process.env.DISCORD_TOKEN!);
 		const commands = Array.from(this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION].values() || []).map(cmd => (cmd as SummatiaCommandModule).getSlashCommandBuilder(this).toJSON());
 		try {
 			this.discordLog(`Started refreshing ${commands.length} application (/) commands.`);
