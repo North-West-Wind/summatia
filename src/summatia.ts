@@ -211,4 +211,25 @@ export class Summatia {
 			return false;
 		}
 	}
+
+	async getRoomMemberCount(roomId: string) {
+		if (!this.useMatrix) return -1;
+		const states = await this.matrix.getRoomState(roomId);
+		// get the number of members in the room
+		return (states.map(state => {
+			if (state.type != "m.room.member") return 0;
+			if (state.content.membership == "join") return 1;
+			if (state.content.membership == "leave") return -1;
+			return 0;
+		}) as number[]).reduce((a, b) => a + b);
+	}
+
+	async getRoomName(roomId: string) {
+		if (!this.useMatrix) return undefined;
+		const states = await this.matrix.getRoomState(roomId);
+		for (let ii = states.length - 1; ii >= 0; ii--)
+			if (states[ii].type == "m.room.name")
+				return states[ii].content.name;
+		return "";
+	}
 }

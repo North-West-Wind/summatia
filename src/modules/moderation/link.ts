@@ -1,11 +1,19 @@
-import { Message, Snowflake } from "discord.js";
+import { Message, Snowflake, TextChannel } from "discord.js";
 import { Summatia } from "../../summatia";
 import { ModerationModule } from "../moderation";
-import { Initialized, SummatiaListeners } from "..";
+import { Initialized, MatrixHandler, SummatiaListeners } from "..";
 import { TidyURL } from "tidy-url";
+import { RoomMessageEvent } from "../../matrix/types/events";
 
-const THRESHOLD = 5, WINDOW_DURATION = 30_000, TIMEOUT_DURATION = 60_000, KICK_THREAT = 5, THREAT_DURATION = 24 * 60 * 60 * 1000;
+const THRESHOLD = 5,
+	WINDOW_DURATION = 30_000,
+	TIMEOUT_DURATION = 60_000,
+	KICK_THREAT = 5,
+	THREAT_DURATION = 24 * 60 * 60 * 1000,
+	
+	CHANNEL_THRESHOLD = 15;
 
+// discord types
 type GuildID = Snowflake;
 type ChannelID = Snowflake;
 type MessageID = Snowflake;
@@ -19,12 +27,19 @@ type UserLink = {
 	unthreatTimeout?: NodeJS.Timeout;
 }
 
-export class LinkModerationModule extends ModerationModule implements Initialized {
+// matrix types
+type RoomID = string;
+
+export class LinkModerationModule extends ModerationModule implements MatrixHandler, Initialized {
 	guildUserLinks: Map<GuildID, Map<UserID, UserLink>>;
+	channelLinks: Map<ChannelID, { deleteTimeout: NodeJS.Timeout, messages: { message: Message, urls: string[] }[] }>;
+	roomLinks: Map<RoomID, { deleteTimeout: NodeJS.Timeout, events: { event: RoomMessageEvent, urls: string[] }[] }>;
 
 	constructor() {
-		super("link-mod", { listen: [SummatiaListeners.INIT] });
+		super("link-mod", { listen: [SummatiaListeners.INIT, SummatiaListeners.MATRIX_MESSAGE] });
 		this.guildUserLinks = new Map();
+		this.channelLinks = new Map();
+		this.roomLinks = new Map();
 	}
 
 	async init(summatia: Summatia) {
@@ -85,6 +100,50 @@ export class LinkModerationModule extends ModerationModule implements Initialize
 					userLinks.delete(message.author.id);
 				} else await message.member.timeout(TIMEOUT_DURATION * userLink.threat * userLink.threat, "You spam too many links too quickly");
 			}
+
+			// after handling per-user link spam, handle per-channel link spam
+			if (!this.channelLinks.has(message.channelId)) this.channelLinks.set(message.channelId, { deleteTimeout: setTimeout(() => this.channelLinks.delete(message.channelId), WINDOW_DURATION), messages: [] });
+			const channelLink = this.channelLinks.get(message.channelId)!;
+			channelLink.deleteTimeout.refresh();
+			channelLink.messages.push({ message, urls });
+
+			counts.clear();
+			for (const messages of this.channelLinks.values())
+				for (const { urls } of messages.messages)
+					for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
+
+			if (channelLink.messages.length >= CHANNEL_THRESHOLD || Array.from(counts.values()).some(count => count >= THRESHOLD)) {
+				await (message.channel as TextChannel).send("Too many links!");
+				for (const msg of channelLink.messages) {
+					await msg.message.delete();
+					await msg.message.member?.timeout(TIMEOUT_DURATION);
+				}
+				this.channelLinks.delete(message.channelId);
+			}
+		}
+	}
+
+	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
+		if (event.content?.msgtype !== 'm.text' || await summatia.getRoomMemberCount(roomId) <= 2 || !/([a-zA-Z0-9]+:\/\/)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\.[A-Za-z]{2,4})(:[0-9]+)?(\/.*)?/.test(event.content.body)) return;
+
+		const urls = event.content.body.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => TidyURL.clean(url).url);
+
+		if (!this.roomLinks.has(roomId)) this.roomLinks.set(roomId, { deleteTimeout: setTimeout(() => this.roomLinks.delete(roomId), WINDOW_DURATION), events: [] });
+		const roomLink = this.roomLinks.get(roomId)!;
+		roomLink.deleteTimeout.refresh();
+		roomLink.events.push({ event, urls });
+
+		const counts = new Map<string, number>();
+		for (const messages of this.channelLinks.values())
+			for (const { urls } of messages.messages)
+				for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
+
+		if (roomLink.events.length >= CHANNEL_THRESHOLD || Array.from(counts.values()).some(count => count >= THRESHOLD)) {
+			await summatia.matrix.sendText(roomId, "Too many links!");
+			for (const evt of roomLink.events) {
+				await summatia.matrix.redactEvent(roomId, evt.event.event_id);
+			}
+			this.channelLinks.delete(roomId);
 		}
 	}
 
