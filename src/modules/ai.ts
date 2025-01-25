@@ -91,7 +91,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 				message.content.toLowerCase().includes("summatia") ||
 				message.type == MessageType.Reply && (await message.channel.messages.fetch(message.reference?.messageId!)).author.id == message.client.user.id) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
 			else {
-				const chance = await summatia.database.shouldListen(message.channelId);
+				const chance = await summatia.database.providers.listen.shouldListen(message.channelId);
 				if (chance >= 0) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, Math.random() * 100 > chance);
 			}
 	

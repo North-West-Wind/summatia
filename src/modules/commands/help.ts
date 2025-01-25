@@ -1,16 +1,15 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandStringOption, ApplicationCommandOptionType } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandStringOption } from "discord.js";
 import { Helpful, MatrixHandler, SummatiaListeners } from "..";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import MarkdownIt from "markdown-it";
+import { renderMarkdown } from "../../helpers/strings";
 
 export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHandler {
-	markdown: MarkdownIt;
 
 	constructor() {
 		super("help", { listen: [SummatiaListeners.MATRIX_MESSAGE] });
-		this.markdown = new MarkdownIt();
 	}
 
 	description() {
@@ -60,7 +59,7 @@ export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHand
 		if (event.content.msgtype != "m.text" || !event.content.body.startsWith(summatia.prefix + this.name)) return;
 		const feature = event.content.body.slice(summatia.prefix.length).split(/\s+/)[1];
 		if (!feature) {
-			const html = this.markdown.render("Hi! I'm Summatia :>  \n" +
+			const html = renderMarkdown("Hi! I'm Summatia :>  \n" +
 				`I do a lot of stuff. You can check them out by \`${summatia.prefix}help <feature>\`.  \n` + 
 				"Current features: " + this.getMatrixModules(summatia).map(name => `\`${name}\``).join(", "));
 			await summatia.matrix.replyHtmlText(roomId, event, html);
@@ -69,7 +68,7 @@ export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHand
 			const module = summatia.modules[SummatiaListeners.HELP].get(feature) as unknown as Helpful;
 			let tbSent = `# ${summatia.prefix}${feature}\n${module.description()}`;
 			for (const example of module.examples()) tbSent += `\n- ${example}`;
-			await summatia.matrix.replyHtmlText(roomId, event, this.markdown.render(tbSent));
+			await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(tbSent));
 		}
 	}
 

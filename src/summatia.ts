@@ -190,7 +190,7 @@ export class Summatia {
 	async isMatrixInChannel(channelId: Snowflake) {
 		if (!this.useMatrix) return false;
 		try {
-			const mxid = await this.database.getChannelRoom(channelId);
+			const mxid = await this.database.providers.bridge.getChannelRoom(channelId);
 			if (!mxid) return false;
 			const rooms = await this.matrix.getJoinedRooms();
 			return rooms.some(id => id == mxid);
@@ -202,7 +202,7 @@ export class Summatia {
 	async isDiscordInRoom(roomId: string) {
 		if (!this.useDiscord) return false;
 		try {
-			const dcid = await this.database.getRoomChannel(roomId);
+			const dcid = await this.database.providers.bridge.getRoomChannel(roomId);
 			if (!dcid) return false;
 			const mxUser = "@discord_" + this.getDiscordId() + ":matrix.northwestw.in";
 			const members = await this.matrix.getRoomMembers(roomId);

@@ -24,7 +24,7 @@ export default class UnlistenCommand extends SummatiaCommandHelpModule {
 	}
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
-		await summatia.database.removeListen(interaction.channelId);
+		await summatia.database.providers.listen.removeListen(interaction.channelId);
 		await interaction.reply("Welp. Bye!");
 	}
 

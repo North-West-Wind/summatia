@@ -27,7 +27,7 @@ export default class ListenCommand extends SummatiaCommandHelpModule {
 	}
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
-		await summatia.database.addListen(interaction.channelId, interaction.options.getInteger("chance", true));
+		await summatia.database.providers.listen.addListen(interaction.channelId, interaction.options.getInteger("chance", true));
 		await interaction.reply("I'm listening to y'all talking.")
 	}
 
