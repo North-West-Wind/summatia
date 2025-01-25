@@ -57,6 +57,24 @@ export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 		});
 	}
 
+	addRssMatrixFeed(id: number, room: string) {
+		return new Promise<void>((res, rej) => {
+			this.db.run("INSERT INTO rssMatrix VALUES (?, ?, NULL)", [room, id], err => {
+				if (err) rej(err);
+				else res();
+			})
+		});
+	}
+
+	addRssDiscordFeed(id: number, channel: string) {
+		return new Promise<void>((res, rej) => {
+			this.db.run("INSERT INTO rssDiscord VALUES (?, ?, NULL)", [channel, id], err => {
+				if (err) rej(err);
+				else res();
+			})
+		});
+	}
+
 	removeRssMatrixFeed(id: number, room: string) {
 		return new Promise<void>((res, rej) => {
 			this.db.run("DELETE FROM rssMatrix WHERE room = ? AND rss = ?", [room, id], err => {
@@ -72,6 +90,24 @@ export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 				if (err) rej(err);
 				else res();
 			})
+		});
+	}
+
+	setRssMatrixTemplate(id: number, room: string, template: string | null) {
+		return new Promise<void>((res, rej) => {
+			this.db.run("UPDATE rssMatrix SET template = ? WHERE room = ? AND rss = ?", [template, room, id], err => {
+				if (err) rej(err);
+				else res();
+			});
+		});
+	}
+
+	setRssDiscordTemplate(id: number, channel: Snowflake, template: string | null) {
+		return new Promise<void>((res, rej) => {
+			this.db.run("UPDATE rssDiscord SET template = ? WHERE channel = ? AND rss = ?", [template, channel, id], err => {
+				if (err) rej(err);
+				else res();
+			});
 		});
 	}
 }
