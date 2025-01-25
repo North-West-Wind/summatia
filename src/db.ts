@@ -16,8 +16,11 @@ export class SummatiaDatabase {
 		// create table if not exist
 		(async () => {
 			try {
-				await this.createIfNotExist("listen", "CREATE TABLE listen (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)");
-				await this.createIfNotExist("linkSpam", "CREATE TABLE linkSpam (user varchar(32) NOT NULL, guild varchar(32) NOT NULL, threat INTEGER NOT NULL, PRIMARY KEY(user, guild))")
+				await this.createIfNotExist("listen", "CREATE TABLE ? (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)");
+				await this.createIfNotExist("linkSpam", "CREATE TABLE ? (user varchar(32) NOT NULL, guild varchar(32) NOT NULL, threat INTEGER NOT NULL, PRIMARY KEY(user, guild))");
+				await this.createIfNotExist("rss", "CREATE TABLE ? (id INTEGER NOT NULL PRIMARY KEY AUTO INCREMENT, url VARCHAR(2083) NOT NULL, timestamp INTEGER)");
+				await this.createIfNotExist("rssDiscord", "CREATE TABLE ? (channel VARCHAR(32) NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss))");
+				await this.createIfNotExist("rssMatrix", "CREATE TABLE ? (room TEXT NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss))");
 				this.ready = true;
 			} catch (err) {
 				console.log("Failed to initialize database");
@@ -34,7 +37,7 @@ export class SummatiaDatabase {
 		return new Promise<void>((res, rej) => {
 			this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [name], (err, row) => {
 				if (err) rej(err);
-				else if (!row) this.db.run(creationQuery, (err) => {
+				else if (!row) this.db.run(creationQuery, [name], (err) => {
 					if (err) rej(err);
 					else res();
 				});
@@ -124,6 +127,19 @@ export class SummatiaDatabase {
 				else this.db.run("INSERT INTO linkSpam VALUES(?, ?, ?)", [userId, guildId, threat], (err) => {
 					if (err) rej(err);
 					else res();
+				});
+			});
+		});
+	}
+
+	addRssFeed(url: string, timestamp: number) {
+		return new Promise<number>((res, rej) => {
+			this.db.run("INSERT INTO rss (url, timestamp) VALUES (?, ?)", [url, timestamp], err => {
+				if (err) rej(err);
+				else this.db.get("SELECT id FROM rss WHERE url = ? AND timestamp = ?", [url, timestamp], (err, row?: { id: number }) => {
+					if (err) rej(err);
+					else if (!row) rej(new Error("Entry not found"));
+					else res(row.id);
 				});
 			});
 		});
