@@ -16,6 +16,7 @@ export class JitsiCommand extends SummatiaMatrixCommandHelpModule {
 	}
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
+		if (event.content.msgtype != "m.text" || !event.content.body.startsWith(summatia.prefix + this.name)) return;
 		const events = await summatia.matrix.getRoomState(roomId);
 		let ev: any;
 		for (let ii = events.length - 1; ii >= 0; ii--) {

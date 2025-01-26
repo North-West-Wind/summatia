@@ -8,7 +8,7 @@ import { cleanUrl, renderMarkdown } from "../../helpers/strings";
 import { PowerLevelAction } from "matrix-bot-sdk";
 
 const RSS_INTERVAL = 10 * 60 * 1000;
-const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{item.name}}  \n{{item.link}}"
+const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{item.name|item.title|item.description}}  \n{{item.link}}"
 const parser = new Parser();
 
 export class RssCommand extends SummatiaCommandHelpModule implements Initialized, Startup {
@@ -295,14 +295,20 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 	}
 
 	private formatTemplate(template: string, feed: { [key: string]: any }, item: { [key: string]: any }) {
-		const matches = Array.from(template.matchAll(/{{([\w.]+)}}/g));
+		const matches = Array.from(template.matchAll(/{{([\w.]+(\|[\w.]+)*)}}/g));
 		for (const match of matches) {
 			// special new line replacement
 			if (match[1] == "n") template = template.replace(match[0], "  \n");
 			else {
-				const keys = match[1].split(".");
-				let thing: any = keys.shift() == "feed" ? feed : item;
-				for (const key of keys) thing = thing[key];
+				const thing = match[1].split("|").map(prop => {
+					const keys = prop.split(".");
+					let thing: any = keys.shift() == "feed" ? feed : item;
+					for (const key of keys) {
+						if (thing === undefined || thing === null) break;
+						thing = thing[key];
+					}
+					return thing;
+				}).reduce((a, b) => a !== undefined ? a : b);
 				template = template.replace(match[0], thing);
 			}
 		}
