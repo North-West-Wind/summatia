@@ -1,10 +1,11 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, MessageFlags, Snowflake, TextChannel, PartialTextBasedChannelFields } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, MessageFlags, Snowflake, TextChannel, PartialTextBasedChannelFields, PermissionFlagsBits } from "discord.js";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import { Initialized, Startup, SummatiaListeners } from "..";
 import Parser from "rss-parser";
 import { cleanUrl, renderMarkdown } from "../../helpers/strings";
+import { PowerLevelAction } from "matrix-bot-sdk";
 
 const RSS_INTERVAL = 10 * 60 * 1000;
 const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{item.name}}  \n{{item.link}}"
@@ -83,18 +84,23 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		let result: { message: string, error: boolean } | undefined;
+		const allowed = interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages);
+		const notAllowedResult = { message: "You don't have the permission to use this!", error: true };
 		switch (interaction.options.getSubcommand()) {
 			case "add":
-				result = await this.addFeed(summatia, interaction.options.getString("url", true), interaction.channelId, false);
+				if (!allowed) result = notAllowedResult;
+				else result = await this.addFeed(summatia, interaction.options.getString("url", true), interaction.channelId, false);
 				break;
 			case "remove":
-				result = await this.removeFeed(summatia, interaction.options.getInteger("id", true), interaction.channelId, false);
+				if (!allowed) result = notAllowedResult;
+				else result = await this.removeFeed(summatia, interaction.options.getInteger("id", true), interaction.channelId, false);
 				break;
 			case "list":
 				result = await this.listFeeds(interaction.channelId, false);
 				break;
 			case "template":
-				result = await this.getOrSetTemplate(summatia, interaction.options.getInteger("id", true), interaction.options.getString("template", false), interaction.channelId, false);
+				if (!allowed && interaction.options.getString("template", false)) result = notAllowedResult;
+				else result = await this.getOrSetTemplate(summatia, interaction.options.getInteger("id", true), interaction.options.getString("template", false), interaction.channelId, false);
 				break;
 		}
 		if (result) await interaction.reply({ content: result.message, flags: MessageFlags.Ephemeral });
@@ -111,20 +117,24 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			return;
 		}
 		let result: { message: string, error: boolean } | undefined;
+		const allowed = await summatia.matrix.userHasPowerLevelForAction(event.sender, roomId, PowerLevelAction.RedactEvents);
+		const notAllowedResult = { message: "You don't have the permission to use this!", error: true };
 		switch (args.shift()) {
 			case "add":
 				if (!args.length) {
 					await summatia.matrix.sendText(roomId, "No RSS feed URL provided.");
 					return;
 				}
-				result = await this.addFeed(summatia, args.shift()!, roomId, true);
+				if (!allowed) result = notAllowedResult;
+				else result = await this.addFeed(summatia, args.shift()!, roomId, true);
 				break;
 			case "remove":
 				if (!args.length || isNaN(parseInt(args[0]))) {
 					await summatia.matrix.sendText(roomId, "No RSS feed ID provided.");
 					return;
 				}
-				result = await this.removeFeed(summatia, parseInt(args.shift()!), roomId, true);
+				if (!allowed) result = notAllowedResult;
+				else result = await this.removeFeed(summatia, parseInt(args.shift()!), roomId, true);
 				break;
 			case "list":
 				result = await this.listFeeds(roomId, true);
@@ -135,7 +145,8 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 					return;
 				}
 				const template = event.content.body.replace(new RegExp(`${summatia.prefix}${this.name}\\s+template\\s+\\d+\\s+`), "");
-				result = await this.getOrSetTemplate(summatia, parseInt(args.shift()!), template, roomId, true);
+				if (!allowed && template) result = notAllowedResult;
+				else result = await this.getOrSetTemplate(summatia, parseInt(args.shift()!), template, roomId, true);
 				break;
 		}
 		if (result) await summatia.matrix.sendHtmlText(roomId, renderMarkdown(result.message));
