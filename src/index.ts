@@ -7,6 +7,7 @@ import UnlistenCommand from "./modules/commands/unlisten";
 import { LinkModerationModule } from "./modules/moderation/link";
 import { HelpCommand } from "./modules/commands/help";
 import { RssCommand } from "./modules/commands/rss";
+import { JitsiCommand } from "./modules/commands/jitsi";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);
@@ -16,9 +17,10 @@ import { RssCommand } from "./modules/commands/rss";
 	summatia.addModule(new LargeMediaModule());
 	// command modules
 	summatia.addModule(new HelpCommand());
+	summatia.addModule(new JitsiCommand());
 	//summatia.addModule(new ListenCommand());
-	//summatia.addModule(new UnlistenCommand());
 	summatia.addModule(new RssCommand());
+	//summatia.addModule(new UnlistenCommand());
 	// moderation modules
 	summatia.addModule(new LinkModerationModule());
 	

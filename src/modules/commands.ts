@@ -25,6 +25,17 @@ export abstract class SummatiaCommandHelpModule extends SummatiaCommandModule im
 	abstract examples(): string[];
 }
 
+export abstract class SummatiaMatrixCommandHelpModule extends SummatiaModule implements MatrixHandler, Helpful {
+	constructor(name: string, options: SummatiaOption = { listen: [] }) {
+		options.listen = addNoRepeat(options.listen, SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.HELP_MATRIX, SummatiaListeners.HELP);
+		super(name, options);
+	}
+
+	abstract description(): string;
+	abstract examples(): string[];
+	abstract onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent): any | Promise<any>;
+}
+
 function addNoRepeat<T>(arr: T[], ...additions: T[]): T[] {
 	return Array.from(new Set(arr.concat(additions)));
 }
