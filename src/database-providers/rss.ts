@@ -3,9 +3,9 @@ import { SummatiaDatabaseProvider } from "./provider";
 
 export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 	async init() {
-		await this.createIfNotExist("rss", "CREATE TABLE ? (id INTEGER NOT NULL PRIMARY KEY AUTO INCREMENT, url VARCHAR(2083) NOT NULL, timestamp INTEGER)");
-		await this.createIfNotExist("rssDiscord", "CREATE TABLE ? (channel VARCHAR(32) NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss))");
-		await this.createIfNotExist("rssMatrix", "CREATE TABLE ? (room TEXT NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss))");
+		await this.createIfNotExist("rss", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, url VARCHAR(2083) NOT NULL, timestamp INTEGER");
+		await this.createIfNotExist("rssDiscord", "channel VARCHAR(32) NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss)");
+		await this.createIfNotExist("rssMatrix", "room TEXT NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(room, rss)");
 	}
 
 	getRssFeedId(url: string) {
@@ -13,6 +13,15 @@ export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 			this.db.get("SELECT id FROM rss WHERE url = ?", [url], (err, row?: { id: number }) => {
 				if (err) rej(err);
 				else res(row?.id);
+			});
+		});
+	}
+
+	getRssFeed(id: number) {
+		return new Promise<{ id: number, url: string, timestamp: number } | undefined>((res, rej) => {
+			this.db.get("SELECT * FROM rss WHERE id = ?", [id], (err, row?: { id: number, url: string, timestamp: number }) => {
+				if (err) rej(err);
+				else res(row);
 			});
 		});
 	}
@@ -28,7 +37,7 @@ export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 
 	getRssDiscordFeeds() {
 		return new Promise<{ channel: Snowflake, rss: number, template?: string }[]>((res, rej) => {
-			this.db.all("SELECT * FROM rss", (err, rows?: { channel: Snowflake, rss: number, template?: string }[]) => {
+			this.db.all("SELECT * FROM rssDiscord", (err, rows?: { channel: Snowflake, rss: number, template?: string }[]) => {
 				if (err) rej(err);
 				else res(rows || []);
 			});
@@ -37,7 +46,7 @@ export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 
 	getRssMatrixFeeds() {
 		return new Promise<{ room: string, rss: number, template?: string }[]>((res, rej) => {
-			this.db.all("SELECT * FROM rss", (err, rows?: { room: string, rss: number, template?: string }[]) => {
+			this.db.all("SELECT * FROM rssMatrix", (err, rows?: { room: string, rss: number, template?: string }[]) => {
 				if (err) rej(err);
 				else res(rows || []);
 			});
@@ -105,6 +114,15 @@ export class RssDatabaseProvider extends SummatiaDatabaseProvider {
 	setRssDiscordTemplate(id: number, channel: Snowflake, template: string | null) {
 		return new Promise<void>((res, rej) => {
 			this.db.run("UPDATE rssDiscord SET template = ? WHERE channel = ? AND rss = ?", [template, channel, id], err => {
+				if (err) rej(err);
+				else res();
+			});
+		});
+	}
+
+	setRssFeedTimestamp(id: number, timestamp: number) {
+		return new Promise<void>((res, rej) => {
+			this.db.run("UPDATE rss SET timestamp = ? WHERE id = ?", [timestamp, id], err => {
 				if (err) rej(err);
 				else res();
 			});

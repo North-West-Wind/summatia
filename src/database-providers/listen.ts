@@ -3,7 +3,7 @@ import { SummatiaDatabaseProvider } from "./provider";
 
 export class ListenDatabaseProvider extends SummatiaDatabaseProvider {
 	async init() {
-		await this.createIfNotExist("listen", "CREATE TABLE ? (channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL)");
+		await this.createIfNotExist("listen", "channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL");
 	}
 
 	addListen(channel: Snowflake, chance: number) {

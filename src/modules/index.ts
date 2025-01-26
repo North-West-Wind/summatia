@@ -4,6 +4,8 @@ import { RoomMessageEvent } from "../matrix/types/events";
 export enum SummatiaListeners {
 	// called before starting in setup
 	INIT,
+	// called after start
+	START,
 	
 	// used for the "help" command. Matrix or Discord makes a feature only appear on MX/DC. Passing none makes it appears on both.
 	HELP,
@@ -34,7 +36,11 @@ export class SummatiaModule {
 import { Summatia } from "../summatia";
 
 export interface Initialized {
-	init(summatia: Summatia): void;
+	init(summatia: Summatia): void | Promise<void>;
+}
+
+export interface Startup {
+	start(summatia: Summatia): void | Promise<void>;
 }
 
 export interface MatrixHandler {

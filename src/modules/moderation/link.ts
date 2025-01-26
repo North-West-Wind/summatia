@@ -2,8 +2,8 @@ import { Message, Snowflake, TextChannel } from "discord.js";
 import { Summatia } from "../../summatia";
 import { ModerationModule } from "../moderation";
 import { Initialized, MatrixHandler, SummatiaListeners } from "..";
-import { TidyURL } from "tidy-url";
 import { RoomMessageEvent } from "../../matrix/types/events";
+import { cleanUrl } from "../../helpers/strings";
 
 const THRESHOLD = 5,
 	WINDOW_DURATION = 30_000,
@@ -63,7 +63,7 @@ export class LinkModerationModule extends ModerationModule implements MatrixHand
 			// add channel id to set
 			if (!userLink.channels.has(message.channelId)) userLink.channels.set(message.channelId, new Map());
 			// add message and urls to map, urls are normalized
-			const urls = message.content.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => TidyURL.clean(url).url);
+			const urls = message.content.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => cleanUrl(url));
 			userLink.channels.get(message.channelId)!.set(message.id, { message, urls });
 			// clear old timeout if exists
 			if (userLink.timeouts.has(message.channelId)) userLink.timeouts.get(message.channelId)!.refresh();
@@ -126,7 +126,7 @@ export class LinkModerationModule extends ModerationModule implements MatrixHand
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
 		if (event.content?.msgtype !== 'm.text' || await summatia.getRoomMemberCount(roomId) <= 2 || !/([a-zA-Z0-9]+:\/\/)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\.[A-Za-z]{2,4})(:[0-9]+)?(\/.*)?/.test(event.content.body)) return;
 
-		const urls = event.content.body.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => TidyURL.clean(url).url);
+		const urls = event.content.body.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => cleanUrl(url));
 
 		if (!this.roomLinks.has(roomId)) this.roomLinks.set(roomId, { deleteTimeout: setTimeout(() => this.roomLinks.delete(roomId), WINDOW_DURATION), events: [] });
 		const roomLink = this.roomLinks.get(roomId)!;

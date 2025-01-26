@@ -1,7 +1,7 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./matrix/types/events";
-import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "./modules";
+import { DiscordHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
@@ -15,6 +15,7 @@ export class Summatia {
 	useDiscord: boolean;
 	modules: { -readonly [key in keyof typeof SummatiaListeners]: Map<string, SummatiaModule> };
 	database: SummatiaDatabase;
+	startTime: number;
 
 	constructor(prefix: string, useMatrix: boolean, useDiscord: boolean) {
 		this.prefix = prefix;
@@ -26,6 +27,7 @@ export class Summatia {
 			modules[listener] = new Map();
 		this.modules = modules as typeof this.modules;
 		this.database = new SummatiaDatabase();
+		this.startTime = 0;
 
 		// matrix client init
 		if (!process.env.MATRIX_HOMESERVER) throw new Error("Matrix homeserver not set");
@@ -79,8 +81,10 @@ export class Summatia {
 	}
 
 	// create non-once event listeners
-	setup() {
+	async setup() {
 		this.matrix.on("room.message", async (roomId: string, event: RoomMessageEvent) => {
+			// don't listen to old messages
+			if (event.origin_server_ts < this.startTime) return;
 			// don't listen to self in bridged channels
 			const selfId = await this.matrix.getUserId();
 			if (event.sender === selfId || event.sender === "@discord_" + this.getDiscordId() + ":matrix.northwestw.in") return;
@@ -113,8 +117,8 @@ export class Summatia {
 
 		// init modules with INIT
 		for (const module of this.modules[SummatiaListeners.INIT].values() || []) {
-			console.log(`Initializing ${module.name}`);
-			(module as unknown as Initialized).init(this);
+			console.log(`Initializing ${module.name}...`);
+			await (module as unknown as Initialized).init(this);
 		}
 
 		console.log("Finished setup");
@@ -122,17 +126,25 @@ export class Summatia {
 
 	// login and stuff
 	async start() {
-		if (this.useMatrix)
-			this.matrix.start()
-				.then(async () => this.matrixLog(`${await this.matrix!.getUserId()} is ready!`));
-		
-		if (this.useDiscord) {
-			this.discord.once(Events.ClientReady, async readyClient => {
-				this.discordLog(`${readyClient.user.tag} is ready!`);
-				this.setDiscordPresence("online");
-			});
+		this.startTime = Date.now();
 
-			this.discord.login(process.env.DISCORD_TOKEN);
+		await Promise.all([
+			this.useMatrix ? this.matrix.start().then(async () => this.matrixLog(`${await this.matrix!.getUserId()} is ready!`)) : undefined,
+			new Promise<void>(res => {
+				if (!this.useDiscord) return res();
+				this.discord.once(Events.ClientReady, async readyClient => {
+					this.discordLog(`${readyClient.user.tag} is ready!`);
+					this.setDiscordPresence("online");
+					res();
+				});
+	
+				this.discord.login(process.env.DISCORD_TOKEN);
+			})
+		]);
+
+		for (const module of this.modules[SummatiaListeners.START].values() || []) {
+			console.log(`Starting ${module.name}...`);
+			await (module as unknown as Startup).start(this);
 		}
 	}
 

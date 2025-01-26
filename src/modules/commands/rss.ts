@@ -2,22 +2,22 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcomman
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
-import { Initialized, SummatiaListeners } from "..";
+import { Initialized, Startup, SummatiaListeners } from "..";
 import Parser from "rss-parser";
 import { cleanUrl, renderMarkdown } from "../../helpers/strings";
 
 const RSS_INTERVAL = 10 * 60 * 1000;
-const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{item.name}}\n  {{item.link}}"
+const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{item.name}}  \n{{item.link}}"
 const parser = new Parser();
 
-export class RssCommand extends SummatiaCommandHelpModule implements Initialized {
+export class RssCommand extends SummatiaCommandHelpModule implements Initialized, Startup {
 	summatia?: Summatia;
 	rss: Map<number, { url: string, timestamp: number }>;
 	rssDiscord: Map<number, Map<Snowflake, string>>;
 	rssMatrix: Map<number, Map<string, string>>;
 
 	constructor() {
-		super("rss", { listen: [SummatiaListeners.MATRIX_MESSAGE] });
+		super("rss", { listen: [SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.INIT, SummatiaListeners.START] });
 		this.rss = new Map();
 		this.rssDiscord = new Map();
 		this.rssMatrix = new Map();
@@ -28,17 +28,21 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		const rss = summatia.database.providers.rss;
 		for (const row of await rss.getRssFeeds())
 			this.rss.set(row.id, { url: row.url, timestamp: row.timestamp });
+		console.log(`Loaded ${this.rss.size} RSS feeds.`);
 		for (const row of await rss.getRssDiscordFeeds()) {
 			if (!this.rssDiscord.has(row.rss)) this.rssDiscord.set(row.rss, new Map());
-			const map = this.rssDiscord.get(row.rss)!;
-			map.set(row.channel, row.template || DEFAULT_TEMPLATE);
+			this.rssDiscord.get(row.rss)!.set(row.channel, row.template || DEFAULT_TEMPLATE);
 		}
+		console.log(`Loaded ${this.rssDiscord.size ? Array.from(this.rssDiscord.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Discord.`);
 		for (const row of await rss.getRssMatrixFeeds()) {
 			if (!this.rssMatrix.has(row.rss)) this.rssMatrix.set(row.rss, new Map());
-			const map = this.rssMatrix.get(row.rss)!;
-			map.set(row.room, row.template || DEFAULT_TEMPLATE);
+			this.rssMatrix.get(row.rss)!.set(row.room, row.template || DEFAULT_TEMPLATE);
 		}
-		setInterval(this.updateFeeds, RSS_INTERVAL);
+		console.log(`Loaded ${this.rssMatrix.size ? Array.from(this.rssMatrix.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Matrix.`);
+	}
+
+	async start(summatia: Summatia) {
+		this.updateFeeds();
 	}
 
 	description() {
@@ -90,7 +94,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				result = await this.listFeeds(interaction.channelId, false);
 				break;
 			case "template":
-				result = await this.setTemplate(summatia, interaction.options.getInteger("id", true), interaction.options.getString("template", false) || null, interaction.channelId, false);
+				result = await this.getOrSetTemplate(summatia, interaction.options.getInteger("id", true), interaction.options.getString("template", false), interaction.channelId, false);
 				break;
 		}
 		if (result) await interaction.reply({ content: result.message, flags: MessageFlags.Ephemeral });
@@ -131,7 +135,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 					return;
 				}
 				const template = event.content.body.replace(new RegExp(`${summatia.prefix}${this.name}\\s+template\\s+\\d+\\s+`), "");
-				result = await this.setTemplate(summatia, parseInt(args.shift()!), template, roomId, true);
+				result = await this.getOrSetTemplate(summatia, parseInt(args.shift()!), template, roomId, true);
 				break;
 		}
 		if (result) await summatia.matrix.sendHtmlText(roomId, renderMarkdown(result.message));
@@ -149,17 +153,20 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 					.reduce((a, b) => Math.max(a, b));
 				id = await rss.addRssFeed(url, timestamp);
 				this.rss.set(id, { url, timestamp });
+			} else if (!this.rss.has(id)) {
+				// rss is not in memory
+				const { url, timestamp } = (await rss.getRssFeed(id))!;
+				this.rss.set(id, { url, timestamp });
 			}
 
 			const map = isMatrix ? this.rssMatrix : this.rssDiscord;
-			const addFunc = isMatrix ? summatia.database.providers.rss.addRssMatrixFeed : summatia.database.providers.rss.addRssDiscordFeed;
-
 			if (map.get(id)?.has(channelOrRoom))
 				return { message: "Already subscribed to this RSS feed.", error: true };
 			if (map.has(id)) map.get(id)!.set(channelOrRoom, DEFAULT_TEMPLATE);
 			else map.set(id, new Map([[channelOrRoom, DEFAULT_TEMPLATE]]));
 
-			await addFunc(id, channelOrRoom);
+			if (isMatrix) await summatia.database.providers.rss.addRssMatrixFeed(id, channelOrRoom);
+			else await summatia.database.providers.rss.addRssDiscordFeed(id, channelOrRoom);
 
 			return { message: `Listening to RSS feed ${id}`, error: false };
 		} catch (err) {
@@ -171,10 +178,10 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 	private async removeFeed(summatia: Summatia, id: number, channelOrRoom: string, isMatrix: boolean): Promise<{ message: string, error: boolean }> {
 		try {
 			const map = isMatrix ? this.rssMatrix : this.rssDiscord;
-			const removeFunc = isMatrix ? summatia.database.providers.rss.removeRssMatrixFeed : summatia.database.providers.rss.removeRssDiscordFeed;
 
 			if (map.get(id)?.delete(channelOrRoom)) {
-				await removeFunc(id, channelOrRoom);
+				if (isMatrix) await summatia.database.providers.rss.removeRssMatrixFeed(id, channelOrRoom);
+				else await summatia.database.providers.rss.removeRssDiscordFeed(id, channelOrRoom);
 				return { message: `Unsubscirbed from RSS feed ${id}.`, error: false };
 			}
 			return { message: `This ${isMatrix ? "room" : "channel"} is not subscribed to this RSS feed.`, error: true };
@@ -192,25 +199,29 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				if (map.has(channelOrRoom))
 					feeds.push(`ID ${id} - ${this.rss.get(id)?.url}`);
 			}
-			return { message: feeds.length ? `This ${isMatrix ? "room" : "channel"} is subscribed to:\n  ${feeds.join("\n  ")}` : `This ${isMatrix ? "room" : "channel"} hasn't subscribed to anything.`, error: false };
+			return { message: feeds.length ? `This ${isMatrix ? "room" : "channel"} is subscribed to:  \n${feeds.join("  \n")}` : `This ${isMatrix ? "room" : "channel"} hasn't subscribed to anything.`, error: false };
 		} catch (err) {
 			console.error(err);
 			return { message: "Could not list RSS feeds!", error: true };
 		}
 	}
 
-	private async setTemplate(summatia: Summatia, id: number, template: string | null, channelOrRoom: string, isMatrix: boolean) {
+	private async getOrSetTemplate(summatia: Summatia, id: number, template: string | null, channelOrRoom: string, isMatrix: boolean) {
 		try {
 			const map = isMatrix ? this.rssMatrix : this.rssDiscord;
-			const setFunc = isMatrix ? summatia.database.providers.rss.setRssMatrixTemplate : summatia.database.providers.rss.setRssDiscordTemplate;
 
 			if (!map.get(id)?.has(channelOrRoom))
 				return { message: `This ${isMatrix ? "room" : "channel"} is not subscribed to this RSS feed.`, error: true };
 
-			if (!map.has(id)) map.set(id, new Map([[channelOrRoom, template || DEFAULT_TEMPLATE]]));
-			else map.get(id)!.set(channelOrRoom, template || DEFAULT_TEMPLATE);
+			if (!template) {
+				template = map.get(id)!.get(channelOrRoom)!;
+				return { message: `Current template for feed ${id}:\n\n${template}`, error: false };
+			}
+
+			map.get(id)!.set(channelOrRoom, template || DEFAULT_TEMPLATE);
 			
-			await setFunc(id, channelOrRoom, template);
+			if (isMatrix) await summatia.database.providers.rss.setRssMatrixTemplate(id, channelOrRoom, template);
+			else await summatia.database.providers.rss.setRssDiscordTemplate(id, channelOrRoom, template);
 
 			return { message: `New template set.`, error: true };
 		} catch (err) {
@@ -221,6 +232,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 
 	private async updateFeeds() {
 		if (!this.summatia) return;
+		console.log(`Polling ${this.rss.size} RSS feeds...`);
 		for (const [id, entry] of this.rss.entries()) {
 			try {
 				const feed = await parser.parseURL(entry.url);
@@ -252,20 +264,36 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 								console.error(err);
 							}
 						}
+					
+					if (entry.timestamp != newMaxTimestamp) {
+						entry.timestamp = newMaxTimestamp;
+						this.rss.set(id, entry);
+						try {
+							await this.summatia.database.providers.rss.setRssFeedTimestamp(id, newMaxTimestamp);
+						} catch (err) {
+							console.error(err);
+						}
+					}
 				}
 			} catch (err) {
 				// feed may be down. don't spam my log
 			}
 		}
+		console.log(`RSS polling complete.`);
+		setTimeout(() => this.updateFeeds(), RSS_INTERVAL);
 	}
 
 	private formatTemplate(template: string, feed: { [key: string]: any }, item: { [key: string]: any }) {
 		const matches = Array.from(template.matchAll(/{{([\w.]+)}}/g));
 		for (const match of matches) {
-			const keys = match[1].split(".");
-			let thing: any = keys.shift() == "feed" ? feed : item;
-			for (const key of keys) thing = thing[key];
-			template = template.replace(match[0], thing);
+			// special new line replacement
+			if (match[1] == "n") template = template.replace(match[0], "  \n");
+			else {
+				const keys = match[1].split(".");
+				let thing: any = keys.shift() == "feed" ? feed : item;
+				for (const key of keys) thing = thing[key];
+				template = template.replace(match[0], thing);
+			}
 		}
 		return template;
 	}
