@@ -180,10 +180,30 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			if (isMatrix) await summatia.database.providers.rss.addRssMatrixFeed(id, channelOrRoom);
 			else await summatia.database.providers.rss.addRssDiscordFeed(id, channelOrRoom);
 
+			await this.addBridgedFeed(summatia, id, channelOrRoom, isMatrix);
+
 			return { message: `Listening to RSS feed ${id}`, error: false };
 		} catch (err) {
 			console.error(err);
 			return { message: "Could not add this RSS feed!", error: true };
+		}
+	}
+
+	private async addBridgedFeed(summatia: Summatia, id: number, channelOrRoom: string, isMatrix: boolean) {
+		try {
+			channelOrRoom = await this.getBridge(summatia, channelOrRoom, isMatrix);
+			if (channelOrRoom) {
+				isMatrix = !isMatrix;
+				const map = isMatrix ? this.rssMatrix : this.rssDiscord;
+				if (map.get(id)?.has(channelOrRoom)) return;
+				if (map.has(id)) map.get(id)!.set(channelOrRoom, DEFAULT_TEMPLATE);
+				else map.set(id, new Map([[channelOrRoom, DEFAULT_TEMPLATE]]));
+		
+				if (isMatrix) await summatia.database.providers.rss.addRssMatrixFeed(id, channelOrRoom);
+				else await summatia.database.providers.rss.addRssDiscordFeed(id, channelOrRoom);
+			}
+		} catch (err) {
+			console.error(err);
 		}
 	}
 
@@ -194,12 +214,29 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			if (map.get(id)?.delete(channelOrRoom)) {
 				if (isMatrix) await summatia.database.providers.rss.removeRssMatrixFeed(id, channelOrRoom);
 				else await summatia.database.providers.rss.removeRssDiscordFeed(id, channelOrRoom);
+				await this.removeBridgedFeed(summatia, id, channelOrRoom, isMatrix);
 				return { message: `Unsubscirbed from RSS feed ${id}.`, error: false };
 			}
 			return { message: `This ${isMatrix ? "room" : "channel"} is not subscribed to this RSS feed.`, error: true };
 		} catch (err) {
 			console.error(err);
 			return { message: "Could not remove this RSS feed!", error: true };
+		}
+	}
+
+	private async removeBridgedFeed(summatia: Summatia, id: number, channelOrRoom: string, isMatrix: boolean) {
+		try {
+			channelOrRoom = await this.getBridge(summatia, channelOrRoom, isMatrix);
+			if (channelOrRoom) {
+				isMatrix = !isMatrix;
+				const map = isMatrix ? this.rssMatrix : this.rssDiscord;
+				if (map.get(id)?.delete(channelOrRoom)) {
+					if (isMatrix) await summatia.database.providers.rss.removeRssMatrixFeed(id, channelOrRoom);
+					else await summatia.database.providers.rss.removeRssDiscordFeed(id, channelOrRoom);
+				}
+			}
+		} catch (err) {
+			console.error(err);
 		}
 	}
 
@@ -226,16 +263,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 
 	private async listBridgedFeeds(summatia: Summatia, channelOrRoom: string, isMatrix: boolean): Promise<string> {
 		try {
-			if (isMatrix) {
-				const channel = await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
-				if (channel) channelOrRoom = channel;
-				else channelOrRoom = "";
-			} else {
-				const room = await summatia.database.providers.bridge.getChannelRoom(channelOrRoom);
-				if (room) channelOrRoom = room;
-				else channelOrRoom = "";
-			}
-
+			channelOrRoom = await this.getBridge(summatia, channelOrRoom, isMatrix);
 			if (channelOrRoom) {
 				const maps = isMatrix ? this.rssMatrix : this.rssDiscord;
 				const feeds: string[] = [];
@@ -264,15 +292,35 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				return { message: `Current template for feed ${id}:\n\n${template}`, error: false };
 			}
 
-			map.get(id)!.set(channelOrRoom, template || DEFAULT_TEMPLATE);
+			map.get(id)!.set(channelOrRoom, template);
 			
 			if (isMatrix) await summatia.database.providers.rss.setRssMatrixTemplate(id, channelOrRoom, template);
 			else await summatia.database.providers.rss.setRssDiscordTemplate(id, channelOrRoom, template);
+
+			await this.setBridgedTemplate(summatia, id, template, channelOrRoom, isMatrix);
 
 			return { message: `New template set. \`${template}\``, error: true };
 		} catch (err) {
 			console.error(err);
 			return { message: "Could not remove this RSS feed!", error: true };
+		}
+	}
+
+	private async setBridgedTemplate(summatia: Summatia, id: number, template: string, channelOrRoom: string, isMatrix: boolean) {
+		try {
+			channelOrRoom = await this.getBridge(summatia, channelOrRoom, isMatrix);
+			if (channelOrRoom) {
+				isMatrix = !isMatrix;
+				const map = isMatrix ? this.rssMatrix : this.rssDiscord;
+				if (!map.get(id)?.has(channelOrRoom)) return;
+	
+				map.get(id)!.set(channelOrRoom, template);
+				
+				if (isMatrix) await summatia.database.providers.rss.setRssMatrixTemplate(id, channelOrRoom, template);
+				else await summatia.database.providers.rss.setRssDiscordTemplate(id, channelOrRoom, template);
+			}
+		} catch (err) {
+			console.error(err);
 		}
 	}
 
@@ -396,5 +444,18 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			}
 		}
 		return [feed, item.map(field => [field, field, { includeSnippet: true, keepArray: true }])];
+	}
+
+	private async getBridge(summatia: Summatia, channelOrRoom: string, isMatrix: boolean) {
+		if (isMatrix) {
+			const channel = await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
+			if (channel) channelOrRoom = channel;
+			else channelOrRoom = "";
+		} else {
+			const room = await summatia.database.providers.bridge.getChannelRoom(channelOrRoom);
+			if (room) channelOrRoom = room;
+			else channelOrRoom = "";
+		}
+		return channelOrRoom;
 	}
 }
