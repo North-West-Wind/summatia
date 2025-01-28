@@ -96,7 +96,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				else result = await this.removeFeed(summatia, interaction.options.getInteger("id", true), interaction.channelId, false);
 				break;
 			case "list":
-				result = await this.listFeeds(interaction.channelId, false);
+				result = await this.listFeeds(summatia, interaction.channelId, false);
 				break;
 			case "template":
 				if (!allowed && interaction.options.getString("template", false)) result = notAllowedResult;
@@ -112,7 +112,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		args.shift();
 		// if no arguments, default to list
 		if (!args.length) {
-			const result = await this.listFeeds(roomId, true);
+			const result = await this.listFeeds(summatia, roomId, true);
 			await summatia.matrix.sendHtmlText(roomId, renderMarkdown(result.message));
 			return;
 		}
@@ -137,7 +137,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				else result = await this.removeFeed(summatia, parseInt(args.shift()!), roomId, true);
 				break;
 			case "list":
-				result = await this.listFeeds(roomId, true);
+				result = await this.listFeeds(summatia, roomId, true);
 				break;
 			case "template":
 				if (!args.length || isNaN(parseInt(args[0]))) {
@@ -202,7 +202,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		}
 	}
 
-	private async listFeeds(channelOrRoom: string, isMatrix: boolean): Promise<{ message: string, error: boolean }> {
+	private async listFeeds(summatia: Summatia, channelOrRoom: string, isMatrix: boolean): Promise<{ message: string, error: boolean }> {
 		try {
 			const maps = isMatrix ? this.rssMatrix : this.rssDiscord;
 			const feeds: string[] = [];
@@ -210,10 +210,44 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				if (map.has(channelOrRoom))
 					feeds.push(`ID ${id} - ${this.rss.get(id)?.url}`);
 			}
-			return { message: feeds.length ? `This ${isMatrix ? "room" : "channel"} is subscribed to:  \n${feeds.join("  \n")}` : `This ${isMatrix ? "room" : "channel"} hasn't subscribed to anything.`, error: false };
+			return {
+				message: (feeds.length ?
+					`This ${isMatrix ? "room" : "channel"} is subscribed to:  \n${feeds.join("  \n")}` :
+					`This ${isMatrix ? "room" : "channel"} hasn't subscribed to anything.`) +
+					await this.listBridgedFeeds(summatia, channelOrRoom, isMatrix),
+				error: false
+			};
 		} catch (err) {
 			console.error(err);
 			return { message: "Could not list RSS feeds!", error: true };
+		}
+	}
+
+	private async listBridgedFeeds(summatia: Summatia, channelOrRoom: string, isMatrix: boolean): Promise<string> {
+		try {
+			if (isMatrix) {
+				const channel = await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
+				if (channel) channelOrRoom = channel;
+				else channelOrRoom = "";
+			} else {
+				const room = await summatia.database.providers.bridge.getChannelRoom(channelOrRoom);
+				if (room) channelOrRoom = room;
+				else channelOrRoom = "";
+			}
+
+			if (channelOrRoom) {
+				const maps = isMatrix ? this.rssMatrix : this.rssDiscord;
+				const feeds: string[] = [];
+				for (const [id, map] of maps.entries()) {
+					if (map.has(channelOrRoom))
+						feeds.push(`ID ${id} - ${this.rss.get(id)?.url}`);
+				}
+				if (!feeds.length) return "";
+				return `\n\nBridged ${isMatrix ? "channel" : "room"} subscribed to:  \n${feeds.join("  \n")}`;
+			} else return "";
+		} catch (err) {
+			console.error(err);
+			return "";
 		}
 	}
 
@@ -254,23 +288,28 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 					if (time <= entry.timestamp) continue;
 					if (time > newMaxTimestamp) newMaxTimestamp = time;
 
-					// send to discord
-					if (this.summatia.useDiscord)
-						for (const [channelId, template] of this.rssDiscord.get(id)?.entries() || []) {
-							try {
-								const channel = await this.summatia.discord.channels.fetch(channelId);
-								if (channel?.isTextBased())
-									await (channel as PartialTextBasedChannelFields).send(this.formatTemplate(template, feed, item));
-							} catch (err) {
-								console.error(err);
-							}
-						}
+					const bridged = new Set<Snowflake>();
 
 					// send to matrix
 					if (this.summatia.useMatrix)
 						for (const [roomId, template] of this.rssMatrix.get(id)?.entries() || []) {
 							try {
 								await this.summatia.matrix.sendHtmlText(roomId, renderMarkdown(this.formatTemplate(template, feed, item)));
+								const channel = await this.summatia.database.providers.bridge.getRoomChannel(roomId);
+								if (channel) bridged.add(channel);
+							} catch (err) {
+								console.error(err);
+							}
+						}
+
+					// send to discord
+					if (this.summatia.useDiscord)
+						for (const [channelId, template] of this.rssDiscord.get(id)?.entries() || []) {
+							if (bridged.has(channelId)) continue; // already sent in matrix
+							try {
+								const channel = await this.summatia.discord.channels.fetch(channelId);
+								if (channel?.isTextBased())
+									await (channel as PartialTextBasedChannelFields).send(this.formatTemplate(template, feed, item));
 							} catch (err) {
 								console.error(err);
 							}
