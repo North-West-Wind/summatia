@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, MessageFlags, Snowflake, TextChannel, PartialTextBasedChannelFields, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, MessageFlags, Snowflake, TextChannel, PartialTextBasedChannelFields, PermissionFlagsBits, SlashCommandIntegerOption } from "discord.js";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
@@ -68,7 +68,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		data.addSubcommand(new SlashCommandSubcommandBuilder()
 			.setName("remove")
 			.setDescription("Stop listening to an RSS feed. Get the ID from `rss list`.")
-			.addStringOption(new SlashCommandStringOption().setName("id").setDescription("RSS feed ID").setRequired(true)));
+			.addIntegerOption(new SlashCommandIntegerOption().setName("id").setDescription("RSS feed ID").setRequired(true)));
 
 		data.addSubcommand(new SlashCommandSubcommandBuilder()
 			.setName("list")
@@ -77,7 +77,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		data.addSubcommand(new SlashCommandSubcommandBuilder()
 			.setName("template")
 			.setDescription("Set a template of an RSS feed.")
-			.addStringOption(new SlashCommandStringOption().setName("id").setDescription("RSS feed ID").setRequired(true))
+			.addIntegerOption(new SlashCommandIntegerOption().setName("id").setDescription("RSS feed ID").setRequired(true))
 			.addStringOption(new SlashCommandStringOption().setName("template").setDescription("RSS feed template")));
 		
 		return data;
