@@ -8,8 +8,9 @@ import { cleanUrl, renderMarkdown } from "../../helpers/strings";
 import { PowerLevelAction } from "matrix-bot-sdk";
 
 const RSS_INTERVAL = 10 * 60 * 1000;
-const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{item.name|item.title|item.description}}  \n{{item.link}}"
-const parser = new Parser();
+const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{contentSnippet}}  \n{{link}}";
+const DEFAULT_PARSER = new Parser();
+const TEMPLATE_MATCH_REGEX = /{{([\w.:-]+(\|[\w.:-]+)*)}}/g;
 
 export class RssCommand extends SummatiaCommandHelpModule implements Initialized, Startup {
 	summatia?: Summatia;
@@ -144,7 +145,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 					await summatia.matrix.sendText(roomId, "No RSS feed ID provided.");
 					return;
 				}
-				const template = event.content.body.replace(new RegExp(`${summatia.prefix}${this.name}\\s+template\\s+\\d+\\s+`), "");
+				const template = event.content.body.replace(new RegExp(`${summatia.prefix}${this.name}\\s+template\\s+\\d+`), "");
 				if (!allowed && template) result = notAllowedResult;
 				else result = await this.getOrSetTemplate(summatia, parseInt(args.shift()!), template, roomId, true);
 				break;
@@ -158,7 +159,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			url = cleanUrl(url);
 			let id = await rss.getRssFeedId(url);
 			if (id === undefined) {
-				const feed = await parser.parseURL(url);
+				const feed = await DEFAULT_PARSER.parseURL(url);
 				const timestamp = feed.items
 					.map(item => (item.isoDate ? new Date(item.isoDate) : new Date(0)).getTime())
 					.reduce((a, b) => Math.max(a, b));
@@ -268,7 +269,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			if (isMatrix) await summatia.database.providers.rss.setRssMatrixTemplate(id, channelOrRoom, template);
 			else await summatia.database.providers.rss.setRssDiscordTemplate(id, channelOrRoom, template);
 
-			return { message: `New template set.`, error: true };
+			return { message: `New template set. \`${template}\``, error: true };
 		} catch (err) {
 			console.error(err);
 			return { message: "Could not remove this RSS feed!", error: true };
@@ -279,6 +280,13 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		if (!this.summatia) return;
 		console.log(`Polling ${this.rss.size} RSS feeds...`);
 		for (const [id, entry] of this.rss.entries()) {
+			const feedFields = new Set<string>(), itemFields = new Set<any>();
+			for (const [_, template] of Array.from(this.rssMatrix.get(id)?.entries() || []).concat(Array.from(this.rssDiscord.get(id)?.entries() || []))) {
+				const [f, i] = this.getTemplateFields(template);
+				(f as string[]).forEach(v => feedFields.add(v));
+				i.forEach(v => itemFields.add(v));
+			}
+			const parser = new Parser({ customFields: { feed: Array.from(feedFields), item: Array.from(itemFields) } });
 			try {
 				const feed = await parser.parseURL(entry.url);
 				let newMaxTimestamp = entry.timestamp;
@@ -334,14 +342,14 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 	}
 
 	private formatTemplate(template: string, feed: { [key: string]: any }, item: { [key: string]: any }) {
-		const matches = Array.from(template.matchAll(/{{([\w.]+(\|[\w.]+)*)}}/g));
+		const matches = Array.from(template.matchAll(TEMPLATE_MATCH_REGEX));
 		for (const match of matches) {
 			// special new line replacement
 			if (match[1] == "n") template = template.replace(match[0], "  \n");
 			else {
 				let thing: any;
 				for (const prop of match[1].split("|")) {
-					const keys = prop.split(".");
+					const keys = prop.replace("\\.", "&").split(".").map(p => p.replace("&", "."));
 					const first = keys.shift()!;
 					switch (first) {
 						case "feed":
@@ -355,7 +363,8 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 					}
 					for (const key of keys) {
 						if (thing === undefined || thing === null) break;
-						thing = thing[key];
+						if (Array.isArray(thing) && !isNaN(parseInt(key))) thing = thing[parseInt(key)];
+						else thing = thing[key];
 					}
 					if (thing !== undefined) break;
 				}
@@ -363,5 +372,29 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			}
 		}
 		return template;
+	}
+
+	private getTemplateFields(template: string) {
+		const feed: string[] = [], item: string[] = [];
+		const matches = Array.from(template.matchAll(TEMPLATE_MATCH_REGEX));
+		for (const match of matches) {
+			for (const prop of match[1].split("|")) {
+				const keys = prop.split(".");
+				const first = keys.shift()!;
+				switch (first) {
+					case "feed":
+						if (keys.length)
+							feed.push(keys.shift()!);
+						break;
+					case "item":
+						if (keys.length)
+							item.push(keys.shift()!);
+						break;
+					default:
+						feed.push(first);
+				}
+			}
+		}
+		return [feed, item.map(field => [field, field, { includeSnippet: true, keepArray: true }])];
 	}
 }
