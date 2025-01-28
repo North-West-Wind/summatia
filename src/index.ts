@@ -8,6 +8,7 @@ import { LinkModerationModule } from "./modules/moderation/link";
 import { HelpCommand } from "./modules/commands/help";
 import { RssCommand } from "./modules/commands/rss";
 import { JitsiCommand } from "./modules/commands/jitsi";
+import { BridgeCommand } from "./modules/commands/bridge";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);
@@ -16,6 +17,7 @@ import { JitsiCommand } from "./modules/commands/jitsi";
 	//summatia.addModule(new AiModule());
 	summatia.addModule(new LargeMediaModule());
 	// command modules
+	summatia.addModule(new BridgeCommand());
 	summatia.addModule(new HelpCommand());
 	summatia.addModule(new JitsiCommand());
 	//summatia.addModule(new ListenCommand());
