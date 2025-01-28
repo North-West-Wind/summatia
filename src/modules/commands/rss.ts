@@ -112,7 +112,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		args.shift();
 		// if no arguments, default to list
 		if (!args.length) {
-			const result = await this.listFeeds(roomId, false);
+			const result = await this.listFeeds(roomId, true);
 			await summatia.matrix.sendHtmlText(roomId, renderMarkdown(result.message));
 			return;
 		}
@@ -300,15 +300,26 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			// special new line replacement
 			if (match[1] == "n") template = template.replace(match[0], "  \n");
 			else {
-				const thing = match[1].split("|").map(prop => {
+				let thing: any;
+				for (const prop of match[1].split("|")) {
 					const keys = prop.split(".");
-					let thing: any = keys.shift() == "feed" ? feed : item;
+					const first = keys.shift()!;
+					switch (first) {
+						case "feed":
+							thing = feed;
+							break;
+						case "item":
+							thing = item;
+							break;
+						default:
+							thing = item[first];
+					}
 					for (const key of keys) {
 						if (thing === undefined || thing === null) break;
 						thing = thing[key];
 					}
-					return thing;
-				}).reduce((a, b) => a !== undefined ? a : b);
+					if (thing !== undefined) break;
+				}
 				template = template.replace(match[0], thing);
 			}
 		}
