@@ -435,8 +435,11 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 							feed.push(keys.shift()!);
 						break;
 					case "item":
-						if (keys.length)
-							item.push(keys.shift()!);
+						if (keys.length) {
+							let key = keys.shift()!;
+							if (key.endsWith("Snippet")) key = key.replace(/Snippet$/, "");
+							item.push(key);
+						}
 						break;
 					default:
 						feed.push(first);
