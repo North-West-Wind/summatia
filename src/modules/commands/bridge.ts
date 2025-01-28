@@ -26,7 +26,7 @@ export class BridgeCommand extends SummatiaCommandHelpModule {
 		else if (!roomId) await interaction.reply("This channel is not bridged.");
 		else {
 			let channelPart = interaction.channelId;
-			if (interaction.channel instanceof GuildChannel) channelPart += ` (${interaction.channel.name})`;
+			if (interaction.channel instanceof GuildChannel) channelPart += ` (#${interaction.channel.name})`;
 			let roomPart = roomId;
 			try {
 				const events = await summatia.matrix.getRoomState(roomId);
@@ -40,8 +40,8 @@ export class BridgeCommand extends SummatiaCommandHelpModule {
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
 		if (event.content.msgtype != "m.text" || !event.content.body.startsWith(summatia.prefix + this.name)) return;
 		const channelId = await summatia.database.providers.bridge.getRoomChannel(roomId);
-		if (channelId === undefined) await summatia.matrix.replyText(roomId, event.event_id, "No bridge information available.");
-		else if (!channelId) await summatia.matrix.replyText(roomId, event.event_id, "This room is not bridged.");
+		if (channelId === undefined) await summatia.matrix.replyText(roomId, event, "No bridge information available.");
+		else if (!channelId) await summatia.matrix.replyText(roomId, event, "This room is not bridged.");
 		else {
 			let roomPart = roomId;
 			const events = await summatia.matrix.getRoomState(roomId);
@@ -50,9 +50,9 @@ export class BridgeCommand extends SummatiaCommandHelpModule {
 			let channelPart = channelId;
 			try {
 				const channel = await summatia.discord.channels.fetch(channelId);
-				if (channel instanceof GuildChannel) channelPart += ` (${channel.name})`;
+				if (channel instanceof GuildChannel) channelPart += ` (#${channel.name})`;
 			} catch (err) { }
-			await summatia.matrix.replyText(roomId, event.event_id, `${roomPart} <-> ${channelPart}`);
+			await summatia.matrix.replyText(roomId, event, `${roomPart} <-> ${channelPart}`);
 		}
 	}
 	
