@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption } from "discord.js";
 import { Client } from "splatoon3api";
-import { ChallengeTimePeriod, FestRotation, SplatRotation } from "splatoon3api/dist/types";
+import { ChallengeTimePeriod, FestMatchSetting, FestRotation, RankedModes, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
@@ -11,8 +11,14 @@ const Splatoon3 = new Client();
 Splatoon3.options.userAgent = `${name}/${version}`;
 Splatoon3.options.cache = { enabled: true, ttl: 60 };
 
+type DoubleRotation = {
+	mode1: (SplatRotation | FestRotation | null)[];
+	mode2: (SplatRotation | FestRotation | null)[];
+}
+
 export class Splatoon3Command extends SummatiaCommandHelpModule {
-	lobbies = ["turf", "anarchy", "x", "salmon", "challenge"];
+	lobbies = ["turf", "anarchy", "x", "fest", "salmon", "challenge"];
+	singleLobby = ["turf", "x"];
 
 	description() {
 		return "Displays information of current rotations and schedules of Splatoon 3, or subscribe to be notified for events.";
@@ -82,10 +88,10 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 			description += "\n"
 			const coopData = await Splatoon3.getSalmonRun();
 			if (coopData.regularSchedules.length && coopData.regularSchedules[0])	{
-				description += `  \nSalmon Run: ${coopData.regularSchedules[0].stage} | ${coopData.regularSchedules[0].boss}`;
-				description += `  \n${coopData.regularSchedules[0].weapons.map(w => w.name).join(" / ")}`;
+				description += `  \nSalmon Run: ${this.salmonStageStr(coopData.regularSchedules[0])}`;
+				description += `  \n${this.salmonWeaponStr(coopData.regularSchedules[0])}`;
 			}
-			if (coopData.bigRunSchedules.length && coopData.bigRunSchedules[0]) description += `  \nBig Run: ${coopData.bigRunSchedules[0].stage} | ${coopData.bigRunSchedules[0].boss}`;
+			if (coopData.bigRunSchedules.length && coopData.bigRunSchedules[0]) description += `  \nBig Run: ${this.salmonStageStr(coopData.bigRunSchedules[0])}`;
 			
 			const challengeData = await Splatoon3.getChallenges();
 			if (challengeData.length) {
@@ -93,13 +99,107 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 				const name = challengeData[0].name;
 				description += `\n\n**${name}** `;
 				if (this.isNowBetweenIsos(nextTime.startTime, nextTime.endTime)) description += "is happening **right now!**";
-				else description += `will happen on **${moment(nextTime.startTime).format("MM/DD HH:mm")}** (UTC+0)`;
+				else description += `will happen on **${this.isoStr(nextTime.startTime)}** (UTC+0)`;
+			}
+
+			return description;
+		} else if (this.lobbies.indexOf(lobby) <= 3) {
+			// turf, anarchy, x or fest
+			const data = await Splatoon3.getStages();
+			if (this.singleLobby.includes(lobby)) description = this.showSingleLobbySchedule(lobby == "turf" ? data.regular : data.xbattle);
+			else if (lobby == "anarchy") description = this.showDoubleLobbySchedule({ mode1: data.ranked.map(r => r?.series || null), mode2: data.ranked.map(r => r?.open || null) });
+			else description = this.showDoubleLobbySchedule({ mode1: data.festSchedule.map(r => r?.regular || null), mode2: data.festSchedule.map(r => r?.challenge || null) });
+		} else if (lobby == "salmon") {
+			// salmon
+			const data = await Splatoon3.getSalmonRun();
+			description = data.regularSchedules.map((r, ii) =>
+				`**${this.isoStr(r.start_time)} - ${this.isoStr(r.end_time)}**${ii == 0 && this.isNowBetweenIsos(r.start_time, r.end_time) ? " **(Now!)**" : ""}  \n${this.salmonStageStr(r)}  \n${this.salmonWeaponStr(r)}`).join("\n\n");
+		} else {
+			// challenge
+			const data = await Splatoon3.getChallenges();
+			for (let ii = 0; ii < data.length; ii++) {
+
 			}
 		}
+			
 	}
 
-	private stageStr(rot: SplatRotation | FestRotation) {
-		return `${rot.stage1} | ${rot.stage2}`;
+	private showSingleLobbySchedule(rotations: (SplatRotation | null)[]) {
+		let hasFest = false;
+		let description = "";
+		for (let ii = 0; ii < rotations.length; ii++) {
+			const rota = rotations[ii];
+			if (!rota) {
+				if (!hasFest) {
+					hasFest = true;
+					description += "  \nLooks like a Splatfest is going on!";
+				}
+				continue;
+			}
+			description += "\n\n";
+			if (ii == 0) description += "**Now**";
+			else description += `**${this.isoStr(rota.start_time)}**`;
+			description += `  \n${this.stageStr(rota)}`;
+		}
+		return description;
+	}
+
+	private showDoubleLobbySchedule(rotations: DoubleRotation) {
+		if (rotations.mode1.length != rotations.mode2.length) return "";
+		let hasFest = false;
+		let description = "";
+		for (let ii = 0; ii < rotations.mode1.length; ii++) {
+			const rota1 = rotations.mode1[ii];
+			const rota2 = rotations.mode2[ii]
+			if (!rota1 || !rota2) {
+				if (!hasFest) {
+					hasFest = true;
+					description += "  \nLooks like a Splatfest is going on!";
+				}
+				continue;
+			}
+			description += "\n\n";
+			if (ii == 0) description += "**Now**";
+			else description += `**${this.isoStr(rota1.start_time)}**`;
+			description += `  \n${this.stageStr(rota1)}`;
+			description += ` **${rota1.rules}**`;
+			description += `  \n${this.stageStr(rota2)}`;
+			description += ` **${rota2.rules}**`;
+		}
+		return description;
+	}
+
+	private showChallengeLobbySchedule(challenges: SplatChallenge[]) {
+		let description = "";
+		for (let ii = 0; ii < challenges.length; ii++) {
+			const challenge = challenges[ii];
+			if (challenge.timePeriods.length <= 0) continue;
+			const nextTime = this.getNextPeriodIndex(challenge.timePeriods);
+			description += `\n# ${challenge.name}\n`;
+			description += challenge.desc + "\n\n";
+			description += challenge.eventRule;
+			description += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}**`;
+			if (ii == 0 && this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime))
+				description += " **(Now!)**";
+			description += `  \n${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
+		}
+		return description;
+	}
+
+	private stageStr(rotation: SplatRotation | FestRotation) {
+		return `${rotation.stage1} | ${rotation.stage2}`;
+	}
+
+	private stagesStr(stages: SplatStage[]) {
+		return stages.map(s => s.name).join(" | ");
+	}
+
+	private salmonStageStr(rotation: SalmonSchedule) {
+		return `${rotation.stage} | ${rotation.boss}`;
+	}
+
+	private salmonWeaponStr(rotation: SalmonSchedule) {
+		return rotation.weapons.map(w => w.name).join(" / ");
 	}
 
 	private getNextPeriodIndex(timePeriods: ChallengeTimePeriod[]) {
@@ -114,5 +214,9 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 
 	private isNowBetweenIsos(start: string, end: string) {
 		return moment().isBetween(moment(start), moment(end));
+	}
+
+	private isoStr(iso: string) {
+		return moment(iso).format("MM/DD HH:mm");
 	}
 }
