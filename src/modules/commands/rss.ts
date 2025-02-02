@@ -104,7 +104,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				else result = await this.getOrSetTemplate(summatia, interaction.options.getInteger("id", true), interaction.options.getString("template", false), interaction.channelId, false);
 				break;
 		}
-		if (result) await interaction.reply({ content: result.message, flags: MessageFlags.Ephemeral });
+		if (result) await interaction.reply(result.message);
 	}
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
@@ -265,6 +265,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		try {
 			channelOrRoom = await this.getBridge(summatia, channelOrRoom, isMatrix);
 			if (channelOrRoom) {
+				isMatrix = !isMatrix;
 				const maps = isMatrix ? this.rssMatrix : this.rssDiscord;
 				const feeds: string[] = [];
 				for (const [id, map] of maps.entries()) {
@@ -272,7 +273,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 						feeds.push(`ID ${id} - ${this.rss.get(id)?.url}`);
 				}
 				if (!feeds.length) return "";
-				return `\n\nBridged ${isMatrix ? "channel" : "room"} subscribed to:  \n${feeds.join("  \n")}`;
+				return `\n\nBridged ${isMatrix ? "room" : "channel"} subscribed to:  \n${feeds.join("  \n")}`;
 			} else return "";
 		} catch (err) {
 			console.error(err);
