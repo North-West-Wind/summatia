@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, ModalBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake } from "discord.js";
 import { Client } from "splatoon3api";
 import { ChallengeTimePeriod, FestMatchSetting, FestRotation, RankedModes, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
 import { RoomMessageEvent } from "../../matrix/types/events";
@@ -6,6 +6,9 @@ import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import { name, version } from "../../../package.json";
 import moment from "moment";
+import { Initialized, SummatiaListeners } from "..";
+import { BitflagManipulator } from "../../database-providers/splatoon3";
+import { renderMarkdown } from "../../helpers/strings";
 
 const Splatoon3 = new Client();
 Splatoon3.options.userAgent = `${name}/${version}`;
@@ -16,9 +19,35 @@ type DoubleRotation = {
 	mode2: (SplatRotation | FestRotation | null)[];
 }
 
-export class Splatoon3Command extends SummatiaCommandHelpModule {
+export class Splatoon3Command extends SummatiaCommandHelpModule implements Initialized {
 	lobbies = ["turf", "anarchy", "x", "fest", "salmon", "challenge"];
 	singleLobby = ["turf", "x"];
+	events = {
+		festSoon: "Splatfest Sneak Peek Starts",
+		festStart: "Splatfest Starts",
+		bigRunStart: "Big Run Starts",
+		challengeStart: "Challenge Starts",
+		challengeHappen: "Challenge Happens"
+	};
+
+	subscriptions: Map<string, Set<string | Snowflake>>;
+
+	constructor() {
+		super("splatoon3", { listen: [SummatiaListeners.INIT] });
+		this.subscriptions = new Map();
+		for (const key of Object.keys(this.events))
+			this.subscriptions.set(key, new Set());
+	}
+
+	async init(summatia: Summatia) {
+		const sets = Array.from(Object.keys(this.events)).map(key => this.subscriptions.get(key)!);
+		const subs = await summatia.database.providers.splatoon3.getAllSubscriptions();
+		subs.forEach((v, k) => {
+			sets.forEach((set, ii) => {
+				if (v.get(ii)) set.add(k);
+			});
+		});
+	}
 
 	description() {
 		return "Displays information of current rotations and schedules of Splatoon 3, or subscribe to be notified for events.";
@@ -27,7 +56,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 	examples() {
 		return [
 			"splatoon3 [turf|anarchy|x|salmon|challenge]",
-			"splatoon3 <subscribe|unsubscribe> [multi-entry sep. by ',': festSoon|festStart|bigRunStart|challengeStart|challengeHappen]"
+			`splatoon3 subscribe [multi-entry sep. by ',': ${Array.from(Object.keys(this.events)).join("|")}]`
 		];
 	}
 
@@ -46,29 +75,66 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 				.setName("events")
 				.setDescription("The events to listen for.")));
 
-		data.addSubcommand(new SlashCommandSubcommandBuilder()
-		.setName("unsubscribe")
-		.setDescription("Unsubscribe from being notified for an event.")
-		.addStringOption(new SlashCommandStringOption()
-			.setName("events")
-			.setDescription("The events to stop listening for.")));
-
 		return data;
 	}
 
-	onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
+	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		const subcommand = interaction.options.getSubcommand();
 		if (!subcommand) {
 			const lobby = interaction.options.getString("lobby");
-
+			await interaction.reply(await this.showSchedule(lobby));
+		} else if (subcommand == "subscribe") {
+			let selection = new Set<string>();
+			const select = new StringSelectMenuBuilder()
+				.setCustomId("subscription")
+				.setPlaceholder("Choose what event to be notified for")
+				.setMinValues(0)
+				.setMaxValues(Array.from(Object.keys(this.events)).length)
+				.addOptions(Array.from(Object.entries(this.events)).map(([k, v]) => new StringSelectMenuOptionBuilder().setLabel(v).setValue(k).setDefault(selection.has(k))));
+			const confirm = new ButtonBuilder().setCustomId("confirm").setLabel("Confirm").setStyle(ButtonStyle.Success);
+			const cancel = new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Danger);
+			const row = new ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>().addComponents(select, confirm, cancel);
+			const res = await interaction.reply({ content: "Select or deselect events", components: [row] });
+			try {
+				const collector = res.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
+				collector.on("collect", int => {
+					if (int.user.id != interaction.user.id) return;
+					selection = new Set(int.values);
+				});
+				const button = await res.awaitMessageComponent({ filter: int => int.componentType == ComponentType.Button && int.user.id === interaction.user.id, time: 60000 });
+				if (button.customId == "confirm") {
+					this.setSubscriptions(summatia, interaction.channelId, Array.from(selection.values()))
+						.then(async () => await interaction.editReply({ content: `Subscribed to ${selection.size ? Array.from(selection.values()).map(v => `**${(this.events as any)[v]}**`).join(", ") : "nothing :<"}`, components: [] }))
+						.catch(async err => {
+							console.error(err);
+							await interaction.editReply({ content: "Ah! Something went wrong! ;▵;", components: [] });
+						});
+				} else await interaction.editReply({ content: "Cancelled :<", components: [] });
+			} catch (err) {
+				await interaction.editReply({ content: "Waited too long. I got bored :<", components: [] });
+			}
 		}
 	}
 	
-	onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
-		throw new Error("Method not implemented.");
+	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
+		if (!this.isValidMatrixCommand(summatia, event)) return;
+		const args = this.getMatrixArgs(summatia, event.content.body);
+		if (!args.length) await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.showSchedule(null)));
+		else if (this.lobbies.includes(args[0])) await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.showSchedule(args[0])));
+		else if (args[0] == "subscribe") {
+			args.shift();
+			const selection = new Set<string>();
+			args.forEach(arg => arg.split(",").filter(a => Array.from(Object.keys(this.events)).includes(a)).forEach(a => selection.add(a)));
+			this.setSubscriptions(summatia, roomId, Array.from(selection.values()))
+				.then(async () => await summatia.matrix.replyText(roomId, event, renderMarkdown(`Subscribed to ${selection.size ? Array.from(selection.values()).map(v => `**${(this.events as any)[v]}**`).join(", ") : "nothing :<"}`)))
+				.catch(async err => {
+					console.error(err);
+					await summatia.matrix.replyText(roomId, event, "Ah! Something went wrong! ;▵;");
+				});
+		} else await summatia.matrix.replyText(roomId, event, "Unknown subcommand :<");
 	}
 	
-	private async showSchedule(lobby?: string) {
+	private async showSchedule(lobby?: string | null) {
 		let description = "";
 		if (!lobby) {
 			description = "**Current rotation:**";
@@ -117,11 +183,9 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 		} else {
 			// challenge
 			const data = await Splatoon3.getChallenges();
-			for (let ii = 0; ii < data.length; ii++) {
-
-			}
+			description += this.showChallengeLobbySchedule(data);
 		}
-			
+		return description;
 	}
 
 	private showSingleLobbySchedule(rotations: (SplatRotation | null)[]) {
@@ -218,5 +282,17 @@ export class Splatoon3Command extends SummatiaCommandHelpModule {
 
 	private isoStr(iso: string) {
 		return moment(iso).format("MM/DD HH:mm");
+	}
+
+	private async setSubscriptions(summatia: Summatia, channelOrRoom: string, subs: string[]) {
+		const manipulator = new BitflagManipulator(0);
+		const cSubs = Array.from(Object.keys(this.events)).filter(s => !subs.includes(s));
+		subs.forEach((sub, ii) => {
+			this.subscriptions.get(sub)?.add(channelOrRoom);
+			manipulator.set(ii, true);
+		});
+		for (const sub of cSubs)
+			this.subscriptions.get(sub)?.delete(channelOrRoom);
+		await summatia.database.providers.splatoon3.setSubscriptions(channelOrRoom, manipulator);
 	}
 }

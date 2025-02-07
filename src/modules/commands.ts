@@ -13,6 +13,16 @@ export abstract class SummatiaCommandModule extends SummatiaModule implements Ma
 
 	abstract onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction): any | Promise<any>;
 	abstract onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent): any | Promise<any>;
+
+	isValidMatrixCommand(summatia: Summatia, event: RoomMessageEvent) {
+		return event.content.msgtype == "m.text" && event.content.body.startsWith(summatia.prefix + this.name);
+	}
+
+	getMatrixArgs(summatia: Summatia, body: string) {
+		const args = body.slice(summatia.prefix.length).split(/\s+/);
+		args.shift();
+		return args;
+	}
 }
 
 export abstract class SummatiaCommandHelpModule extends SummatiaCommandModule implements Helpful {

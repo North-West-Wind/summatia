@@ -4,6 +4,7 @@ import { LinkDatabaseProvider } from "./database-providers/link";
 import { ListenDatabaseProvider } from "./database-providers/listen";
 import { BridgeDatabaseProvider } from "./database-providers/bridge";
 import { RssDatabaseProvider } from "./database-providers/rss";
+import { Splatoon3DatabaseProvider } from "./database-providers/splatoon3";
 
 export class SummatiaDatabase {
 	private db: Database;
@@ -13,6 +14,7 @@ export class SummatiaDatabase {
 		listen: ListenDatabaseProvider;
 		link: LinkDatabaseProvider;
 		rss: RssDatabaseProvider;
+		splatoon3: Splatoon3DatabaseProvider;
 	}
 
 	constructor() {
@@ -25,6 +27,7 @@ export class SummatiaDatabase {
 			listen: new ListenDatabaseProvider(this.db),
 			link: new LinkDatabaseProvider(this.db),
 			rss: new RssDatabaseProvider(this.db),
+			splatoon3: new Splatoon3DatabaseProvider(this.db),
 		};
 		this.init();
 	}
