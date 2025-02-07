@@ -1,14 +1,17 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, ModalBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, ModalBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel } from "discord.js";
 import { Client } from "splatoon3api";
-import { ChallengeTimePeriod, FestMatchSetting, FestRotation, RankedModes, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
+import { ChallengeTimePeriod, FestMatchSetting, FestRegion, FestRotation, RankedModes, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import { name, version } from "../../../package.json";
-import moment from "moment";
+import moment, { MomentInput } from "moment";
 import { Initialized, SummatiaListeners } from "..";
 import { BitflagManipulator } from "../../database-providers/splatoon3";
 import { renderMarkdown } from "../../helpers/strings";
+import { schedule } from "node-cron";
+import fetch from "node-fetch";
+import { FestRecord } from "../../matrix/types/splatoon3";
 
 const Splatoon3 = new Client();
 Splatoon3.options.userAgent = `${name}/${version}`;
@@ -31,6 +34,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	};
 
 	subscriptions: Map<string, Set<string | Snowflake>>;
+	summatia?: Summatia;
 
 	constructor() {
 		super("splatoon3", { listen: [SummatiaListeners.INIT] });
@@ -47,6 +51,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				if (v.get(ii)) set.add(k);
 			});
 		});
+		this.summatia = summatia;
+		schedule("0 */2 * * *", this.rotationUpdate.bind(this));
 	}
 
 	description() {
@@ -276,8 +282,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		return 0;
 	}
 
-	private isNowBetweenIsos(start: string, end: string) {
-		return moment().isBetween(moment(start), moment(end));
+	private isNowBetweenIsos(start: MomentInput, end: MomentInput) {
+		return moment().isBetween(start, end);
 	}
 
 	private isoStr(iso: string) {
@@ -285,14 +291,92 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	private async setSubscriptions(summatia: Summatia, channelOrRoom: string, subs: string[]) {
+		const other = /^\d+$/.test(channelOrRoom) ? await summatia.database.providers.bridge.getChannelRoom(channelOrRoom) : await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
 		const manipulator = new BitflagManipulator(0);
 		const cSubs = Array.from(Object.keys(this.events)).filter(s => !subs.includes(s));
 		subs.forEach((sub, ii) => {
 			this.subscriptions.get(sub)?.add(channelOrRoom);
+			if (other) this.subscriptions.get(sub)?.add(other);
 			manipulator.set(ii, true);
 		});
-		for (const sub of cSubs)
+		for (const sub of cSubs) {
 			this.subscriptions.get(sub)?.delete(channelOrRoom);
+			if (other) this.subscriptions.get(sub)?.delete(other);
+		}
 		await summatia.database.providers.splatoon3.setSubscriptions(channelOrRoom, manipulator);
+		if (other) await summatia.database.providers.splatoon3.setSubscriptions(other, manipulator);
+	}
+
+	private async rotationUpdate() {
+		const messages = new Map<keyof typeof this.events, string>();
+
+		const challenge = (await Splatoon3.getChallenges())[0];
+		let challengeStartStr = "";
+		if (challenge && this.isNowBetweenIsos(challenge.timePeriods[0].startTime, challenge.timePeriods[0].endTime)) {
+			challengeStartStr += `# ${challenge.name}\nis starting its first rotation **right now!**  \n`;
+			challengeStartStr += `${challenge.desc}\n\n`;
+			challengeStartStr += `${challenge.eventRule}\n\n`;
+			challengeStartStr += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}** (UTC+00:00)  \n`;
+			challengeStartStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
+		}
+		if (challengeStartStr) messages.set("challengeStart", challengeStartStr);
+
+		let challengeHappenStr = "";
+		if (challenge && !challengeStartStr) {
+			const nextTime = this.getNextPeriodIndex(challenge.timePeriods);
+			if (this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime)) {
+				challengeHappenStr += `# ${challenge.name}\nis happening **right now!**  \n`;
+				challengeHappenStr += `${challenge.desc}\n\n`;
+				challengeHappenStr += `${challenge.eventRule}\n\n`;
+				challengeHappenStr += `**${this.isoStr(challenge.timePeriods[nextTime].startTime)} - ${this.isoStr(challenge.timePeriods[nextTime].endTime)}** (UTC+00:00)  \n`;
+				challengeHappenStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
+			}
+		}
+		if (challengeHappenStr) messages.set("challengeHappen", challengeHappenStr);
+
+		const salmon = await Splatoon3.getSalmonRun();
+		let bigRunStartStr = "";
+		if (salmon.bigRunSchedules.length && this.isNowBetweenIsos(salmon.bigRunSchedules[0].start_time, moment(salmon.bigRunSchedules[0].start_time).add(2, "hour"))) {
+			const bigRun = salmon.bigRunSchedules[0];
+			bigRunStartStr += `# Big Run in ${bigRun.stage}!\n`;
+			bigRunStartStr += `It's happening **right now!**  \n`;
+			bigRunStartStr += `**${this.isoStr(bigRun.start_time)}** - **${this.isoStr(bigRun.end_time)}** (UTC+00:00)  \n`;
+			bigRunStartStr += `${bigRun.boss} | ${bigRun.weapons.map(w => w.name).join(", ")}`;
+		}
+		if (bigRunStartStr) messages.set("bigRunStart", bigRunStartStr);
+
+		let res = await fetch("https://splatoon3.ink/data/festivals.json");
+		const fest = (await res.json()) as ({ [key in FestRegion]: { data: { festRecords: { nodes: FestRecord[] } } } });
+		let festSoonStr = "";
+		const festSoonStrs: string[] = [];
+		const ids = new Set<string>();
+		for (const record of Array.from(Object.values(fest)).map(region => region.data.festRecords.nodes[0])) {
+			if (ids.has(record.__splatoon3ink_id) || record.state != "SCHEDULED") continue;
+			ids.add(record.__splatoon3ink_id);
+			if (!festSoonStr)
+				festSoonStr += "Splatfest happening soon! You can vote now!";
+			let indFestSoonStr = `# ${record.title}\n`;
+			indFestSoonStr += `This Splatfest will happen on **${this.isoStr(record.startTime)}** - **${this.isoStr(record.endTime)}**  \n`;
+			indFestSoonStr += `Teams: **${record.teams.map(team => team.teamName).join("**, **")}**`;
+		}
+
+		let festStartStr = "";
+
+		for (const [key, message] of messages.entries())
+			for (const id of this.subscriptions.get(key) || [])
+				await this.sendRotationStr(id, message);
+	}
+
+	private async sendRotationStr(channelOrRoom: string, message: string) {
+		if (!this.summatia || !message) return;
+		try {
+			if (/^\d+$/.test(channelOrRoom)) {
+				const channel = await this.summatia.discord.channels.fetch(channelOrRoom);
+				if (channel?.isTextBased()) await (channel as TextChannel).send(message);
+			} else
+				await this.summatia.matrix.sendHtmlText(channelOrRoom, renderMarkdown(message));
+		} catch (err) {
+			console.error(err);
+		}
 	}
 }
