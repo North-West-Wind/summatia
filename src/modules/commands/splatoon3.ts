@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, ModalBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, ModalBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel, AttachmentBuilder } from "discord.js";
 import { Client } from "splatoon3api";
 import { ChallengeTimePeriod, FestMatchSetting, FestRegion, FestRotation, RankedModes, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
 import { RoomMessageEvent } from "../../matrix/types/events";
@@ -12,6 +12,9 @@ import { renderMarkdown } from "../../helpers/strings";
 import { schedule } from "node-cron";
 import fetch from "node-fetch";
 import { FestRecord } from "../../matrix/types/splatoon3";
+import mime from 'mime/lite';
+import { imageMeta } from "image-meta";
+import { imageMessageContent } from "../../matrix/sender";
 
 const Splatoon3 = new Client();
 Splatoon3.options.userAgent = `${name}/${version}`;
@@ -34,7 +37,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	};
 
 	subscriptions: Map<string, Set<string | Snowflake>>;
-	summatia?: Summatia;
+	pastFests!: Set<string>;
+	summatia!: Summatia;
 
 	constructor() {
 		super("splatoon3", { listen: [SummatiaListeners.INIT] });
@@ -51,6 +55,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				if (v.get(ii)) set.add(k);
 			});
 		});
+		this.pastFests = new Set(await summatia.database.providers.splatoon3.getPastFests());
 		this.summatia = summatia;
 		schedule("0 */2 * * *", this.rotationUpdate.bind(this));
 	}
@@ -308,7 +313,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	private async rotationUpdate() {
-		const messages = new Map<keyof typeof this.events, string>();
+		const messages = new Map<keyof typeof this.events, { str: string, img?: string }[]>();
 
 		const challenge = (await Splatoon3.getChallenges())[0];
 		let challengeStartStr = "";
@@ -319,7 +324,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			challengeStartStr += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}** (UTC+00:00)  \n`;
 			challengeStartStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 		}
-		if (challengeStartStr) messages.set("challengeStart", challengeStartStr);
+		if (challengeStartStr) messages.set("challengeStart", [{ str: challengeStartStr }]);
 
 		let challengeHappenStr = "";
 		if (challenge && !challengeStartStr) {
@@ -332,7 +337,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				challengeHappenStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 			}
 		}
-		if (challengeHappenStr) messages.set("challengeHappen", challengeHappenStr);
+		if (challengeHappenStr) messages.set("challengeHappen", [{ str: challengeHappenStr }]);
 
 		const salmon = await Splatoon3.getSalmonRun();
 		let bigRunStartStr = "";
@@ -343,40 +348,74 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			bigRunStartStr += `**${this.isoStr(bigRun.start_time)}** - **${this.isoStr(bigRun.end_time)}** (UTC+00:00)  \n`;
 			bigRunStartStr += `${bigRun.boss} | ${bigRun.weapons.map(w => w.name).join(", ")}`;
 		}
-		if (bigRunStartStr) messages.set("bigRunStart", bigRunStartStr);
+		if (bigRunStartStr) messages.set("bigRunStart", [{ str: bigRunStartStr }]);
 
 		let res = await fetch("https://splatoon3.ink/data/festivals.json");
 		const fest = (await res.json()) as ({ [key in FestRegion]: { data: { festRecords: { nodes: FestRecord[] } } } });
-		let festSoonStr = "";
-		const festSoonStrs: string[] = [];
-		const ids = new Set<string>();
+		let festSoon = false;
+		let festStart = false;
 		for (const record of Array.from(Object.values(fest)).map(region => region.data.festRecords.nodes[0])) {
-			if (ids.has(record.__splatoon3ink_id) || record.state != "SCHEDULED") continue;
-			ids.add(record.__splatoon3ink_id);
-			if (!festSoonStr)
-				festSoonStr += "Splatfest happening soon! You can vote now!";
-			let indFestSoonStr = `# ${record.title}\n`;
-			indFestSoonStr += `This Splatfest will happen on **${this.isoStr(record.startTime)}** - **${this.isoStr(record.endTime)}**  \n`;
-			indFestSoonStr += `Teams: **${record.teams.map(team => team.teamName).join("**, **")}**`;
+			if (!this.pastFests.has(record.__splatoon3ink_id) && record.state == "SCHEDULED") {
+				this.pastFests.add(record.__splatoon3ink_id);
+				this.summatia.database.providers.splatoon3.addPastFest(record.__splatoon3ink_id).catch(console.error);
+				if (!festSoon) {
+					festSoon = true;
+					messages.set("festSoon", [{ str: "Splatfest happening soon! You can vote now!" }]);
+				}
+				let indFestSoonStr = `# ${record.title}\n`;
+				indFestSoonStr += `This Splatfest will happen on **${this.isoStr(record.startTime)}** - **${this.isoStr(record.endTime)}**  \n`;
+				indFestSoonStr += `Teams: **${record.teams.map(team => team.teamName).join("**, **")}**`;
+				messages.get("festSoon")!.push({ str: indFestSoonStr, img: record.image.url });
+			}
+			if (this.isNowBetweenIsos(record.startTime, moment(record.startTime).add(2, "hour"))) {
+				if (!festStart) {
+					festStart = true;
+					messages.set("festStart", [{ str: "Splatfest is happening!" }]);
+				}
+				let indFestStartStr = `# ${record.title}\n`;
+				indFestStartStr += `This Splatfest is going from **${this.isoStr(record.startTime)}** to **${this.isoStr(record.endTime)}**  \n`;
+				indFestStartStr += `Teams: **${record.teams.map(team => team.teamName).join("**, **")}**`;
+				messages.get("festStart")!.push({ str: indFestStartStr, img: record.image.url });
+			}
 		}
-
-		let festStartStr = "";
 
 		for (const [key, message] of messages.entries())
 			for (const id of this.subscriptions.get(key) || [])
-				await this.sendRotationStr(id, message);
+				await this.sendRotationMessage(id, message);
 	}
 
-	private async sendRotationStr(channelOrRoom: string, message: string) {
+	private async sendRotationMessage(channelOrRoom: string, message: { str: string, img?: string }[]) {
 		if (!this.summatia || !message) return;
-		try {
-			if (/^\d+$/.test(channelOrRoom)) {
-				const channel = await this.summatia.discord.channels.fetch(channelOrRoom);
-				if (channel?.isTextBased()) await (channel as TextChannel).send(message);
-			} else
-				await this.summatia.matrix.sendHtmlText(channelOrRoom, renderMarkdown(message));
-		} catch (err) {
-			console.error(err);
+		const isDiscord = /^\d+$/.test(channelOrRoom);
+		const channel = isDiscord ? await this.summatia.discord.channels.fetch(channelOrRoom) : undefined;
+		const send = async (str: string, img?: string) => {
+			if (isDiscord) {
+				if (img) await (channel as TextChannel).send({ content: str, files: [new AttachmentBuilder(img)] });
+				else await (channel as TextChannel).send(str);
+			} else {
+				await this.summatia?.matrix.sendHtmlText(channelOrRoom, renderMarkdown(str));
+				if (img) {
+					const res = await fetch(img);
+					const buffer = await res.buffer();
+					const meta = imageMeta(buffer);
+					const info = { w: meta.width, h: meta.height, mimetype: meta.type || mime.lookup(meta.type!), size: buffer.byteLength };
+					const mxc = await this.summatia?.matrix.uploadContentFromUrl(img);
+					if (mxc) {
+						if (await this.summatia.matrix.crypto.isRoomEncrypted(channelOrRoom)) {
+							const encrypted = await this.summatia?.matrix.crypto.encryptMedia(buffer);
+							await this.summatia.matrix.sendMessage(channelOrRoom, imageMessageContent(mxc, "rot.png", info, encrypted?.file));
+						} else await this.summatia.matrix.sendMessage(channelOrRoom, imageMessageContent(mxc, "rot.png", info));
+					}
+				}
+			}
+		}
+		for (const { str, img } of message) {
+			if (!str) continue;
+			try {
+				await send(str, img);
+			} catch (err) {
+				console.error(err);
+			}
 		}
 	}
 }

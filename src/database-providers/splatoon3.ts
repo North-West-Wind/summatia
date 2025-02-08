@@ -22,11 +22,7 @@ export class BitflagManipulator {
 export class Splatoon3DatabaseProvider extends SummatiaDatabaseProvider {
 	async init() {
 		await this.createIfNotExist("s3subs", "id TEXT NOT NULL PRIMARY KEY, bitflag INTEGER NOT NULL");
-	}
-
-	async getSubscriptions(id: string) {
-		const row = await this.get<{ bitflag: number }>("SELECT bitflag FROM s3subs WHERE id = ?", [id]);
-		return new BitflagManipulator(row?.bitflag || 0);
+		await this.createIfNotExist("s3past", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, s3id VARCHAR(32) NOT NULL");
 	}
 
 	async setSubscriptions(id: string, manipulator: BitflagManipulator) {
@@ -41,5 +37,13 @@ export class Splatoon3DatabaseProvider extends SummatiaDatabaseProvider {
 		const map = new Map<string, BitflagManipulator>();
 		(await this.all<{ roomId: string, bitflag: number }>("SELECT * FROM s3subs") || []).forEach(r => map.set(r.roomId, new BitflagManipulator(r.bitflag)));
 		return map;
+	}
+
+	async addPastFest(s3id: string) {
+		await this.run("INSERT INTO s3past (s3id) VALUES (?)", [s3id]);
+	}
+
+	async getPastFests() {
+		return (await this.all<{ s3id: string }>("SELECT s3id FROM s3past"))?.map(x => x.s3id) || [];
 	}
 }

@@ -1,7 +1,7 @@
 export type FestRecord = {
 	__splatoon3ink_id: string;
 	id: string;
-	state: "SCHEDULED" | "CLOSED";
+	state: "SCHEDULED" | "FIRST_HALF" | "CLOSED";
 	startTime: string;
 	endTime: string;
 	title: string;
