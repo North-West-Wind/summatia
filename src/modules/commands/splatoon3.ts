@@ -250,8 +250,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			if (challenge.timePeriods.length <= 0) continue;
 			const nextTime = this.getNextPeriodIndex(challenge.timePeriods);
 			description += `\n# ${challenge.name}\n`;
-			description += challenge.desc + "\n\n";
-			description += challenge.eventRule.replace("<br />", "  \n");
+			description += challenge.desc.replace(/<br *\/>/g, "  \n") + "\n\n";
+			description += challenge.eventRule.replace(/<br *\/>/g, "  \n");
 			description += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}**`;
 			if (ii == 0 && this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime))
 				description += " **(Now!)**";
@@ -320,7 +320,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		if (challenge && this.isNowBetweenIsos(challenge.timePeriods[0].startTime, challenge.timePeriods[0].endTime)) {
 			challengeStartStr += `# ${challenge.name}\nis starting its first rotation **right now!**  \n`;
 			challengeStartStr += `${challenge.desc}\n\n`;
-			challengeStartStr += `${challenge.eventRule.replace("<br />", "  \n")}\n\n`;
+			challengeStartStr += `${challenge.eventRule.replace(/<br *\/>/g, "  \n")}\n\n`;
 			challengeStartStr += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}** (UTC+00:00)  \n`;
 			challengeStartStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 		}
@@ -332,7 +332,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			if (this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime)) {
 				challengeHappenStr += `# ${challenge.name}\nis happening **right now!**  \n`;
 				challengeHappenStr += `${challenge.desc}\n\n`;
-				challengeHappenStr += `${challenge.eventRule.replace("<br />", "  \n")}\n\n`;
+				challengeHappenStr += `${challenge.eventRule.replace(/<br *\/>/g, "  \n")}\n\n`;
 				challengeHappenStr += `**${this.isoStr(challenge.timePeriods[nextTime].startTime)} - ${this.isoStr(challenge.timePeriods[nextTime].endTime)}** (UTC+00:00)  \n`;
 				challengeHappenStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 			}
