@@ -11,7 +11,7 @@ import { renderMarkdown } from "../../helpers/strings";
 import { schedule } from "node-cron";
 import fetch from "node-fetch";
 import { FestRecord } from "../../matrix/types/splatoon3";
-import mime from 'mime/lite';
+import mime from 'mime';
 import { imageMeta } from "image-meta";
 import { imageMessageContent } from "../../matrix/sender";
 
@@ -404,7 +404,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 					const res = await fetch(img);
 					const buffer = await res.buffer();
 					const meta = imageMeta(buffer);
-					const info = { w: meta.width, h: meta.height, mimetype: meta.type || mime.lookup(meta.type!), size: buffer.byteLength };
+					const info = { w: meta.width, h: meta.height, mimetype: mime.getType(meta.type!)!, size: buffer.byteLength };
 					const mxc = await this.summatia?.matrix.uploadContentFromUrl(img);
 					if (mxc) {
 						if (await this.summatia.matrix.crypto.isRoomEncrypted(channelOrRoom)) {
