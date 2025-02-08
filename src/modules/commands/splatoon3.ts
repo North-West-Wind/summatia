@@ -65,7 +65,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 
 	examples() {
 		return [
-			"splatoon3 [turf|anarchy|x|salmon|challenge]",
+			"splatoon3 [schedule] [turf|anarchy|x|salmon|challenge]",
 			`splatoon3 subscribe [multi-entry sep. by ',': ${Array.from(Object.keys(this.events)).join("|")}]`
 		];
 	}
@@ -73,17 +73,17 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	getSlashCommandBuilder() {
 		const data = new SlashCommandBuilder().setName(this.name).setDescription(this.description());
 
-		data.addStringOption(new SlashCommandStringOption()
-			.setName("lobby")
-			.setDescription("The lobby to get schedule for. Omit for current rotation of everything.")
-			.setChoices(this.lobbies.map(v => ({ value: v, name: v }))));
+		data.addSubcommand(new SlashCommandSubcommandBuilder()
+			.setName("schedule")
+			.setDescription("Get rotations or schedules for lobbies.")
+			.addStringOption(new SlashCommandStringOption()
+				.setName("lobby")
+				.setDescription("The lobby to get schedule for. Omit for current rotation of everything.")
+				.setChoices(this.lobbies.map(v => ({ value: v, name: v })))));
 
 		data.addSubcommand(new SlashCommandSubcommandBuilder()
 			.setName("subscribe")
-			.setDescription("Subscribe to be notified for an event.")
-			.addStringOption(new SlashCommandStringOption()
-				.setName("events")
-				.setDescription("The events to listen for.")));
+			.setDescription("Subscribe to be notified for an event."));
 
 		return data;
 	}
