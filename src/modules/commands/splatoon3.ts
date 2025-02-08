@@ -184,7 +184,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const data = await Splatoon3.getStages();
 			if (this.singleLobby.includes(lobby)) description = this.showSingleLobbySchedule(lobby == "turf" ? data.regular : data.xbattle);
 			else if (lobby == "anarchy") description = this.showDoubleLobbySchedule({ mode1: data.ranked.map(r => r?.series || null), mode2: data.ranked.map(r => r?.open || null) });
-			else description = this.showDoubleLobbySchedule({ mode1: data.festSchedule.map(r => r?.regular || null), mode2: data.festSchedule.map(r => r?.challenge || null) });
+			else description = this.showDoubleLobbySchedule({ mode1: data.festSchedule.map(r => r?.regular || null), mode2: data.festSchedule.map(r => r?.challenge || null) }, true);
 		} else if (lobby == "salmon") {
 			// salmon
 			const data = await Splatoon3.getSalmonRun();
@@ -218,7 +218,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		return description;
 	}
 
-	private showDoubleLobbySchedule(rotations: DoubleRotation) {
+	private showDoubleLobbySchedule(rotations: DoubleRotation, festRotation = false) {
 		if (rotations.mode1.length != rotations.mode2.length) return "";
 		let hasFest = false;
 		let description = "";
@@ -228,7 +228,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			if (!rota1 || !rota2) {
 				if (!hasFest) {
 					hasFest = true;
-					description += "  \nLooks like a Splatfest is going on!";
+					description += `  \nLooks like ${festRotation ? "there isn't a Splatfest right now" : "a Splatfest is going on"}!`;
 				}
 				continue;
 			}
@@ -251,7 +251,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const nextTime = this.getNextPeriodIndex(challenge.timePeriods);
 			description += `\n# ${challenge.name}\n`;
 			description += challenge.desc + "\n\n";
-			description += challenge.eventRule;
+			description += challenge.eventRule.replace("<br />", "  \n");
 			description += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}**`;
 			if (ii == 0 && this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime))
 				description += " **(Now!)**";
@@ -320,7 +320,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		if (challenge && this.isNowBetweenIsos(challenge.timePeriods[0].startTime, challenge.timePeriods[0].endTime)) {
 			challengeStartStr += `# ${challenge.name}\nis starting its first rotation **right now!**  \n`;
 			challengeStartStr += `${challenge.desc}\n\n`;
-			challengeStartStr += `${challenge.eventRule}\n\n`;
+			challengeStartStr += `${challenge.eventRule.replace("<br />", "  \n")}\n\n`;
 			challengeStartStr += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}** (UTC+00:00)  \n`;
 			challengeStartStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 		}
@@ -332,7 +332,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			if (this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime)) {
 				challengeHappenStr += `# ${challenge.name}\nis happening **right now!**  \n`;
 				challengeHappenStr += `${challenge.desc}\n\n`;
-				challengeHappenStr += `${challenge.eventRule}\n\n`;
+				challengeHappenStr += `${challenge.eventRule.replace("<br />", "  \n")}\n\n`;
 				challengeHappenStr += `**${this.isoStr(challenge.timePeriods[nextTime].startTime)} - ${this.isoStr(challenge.timePeriods[nextTime].endTime)}** (UTC+00:00)  \n`;
 				challengeHappenStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 			}
