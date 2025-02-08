@@ -379,9 +379,15 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			}
 		}
 
-		for (const [key, message] of messages.entries())
-			for (const id of this.subscriptions.get(key) || [])
+		for (const [key, message] of messages.entries()) {
+			const bridges = new Set<string>();
+			for (const id of this.subscriptions.get(key) || []) {
+				if (bridges.has(id)) continue;
+				const other = /^\d+$/.test(id) ? await this.summatia.database.providers.bridge.getChannelRoom(id) : await this.summatia.database.providers.bridge.getRoomChannel(id);
+				if (other) bridges.add(other);
 				await this.sendRotationMessage(id, message);
+			}
+		}
 	}
 
 	private async sendRotationMessage(channelOrRoom: string, message: { str: string, img?: string }[]) {
