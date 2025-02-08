@@ -60,7 +60,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	description() {
-		return "Displays information of current rotations and schedules of Splatoon 3, or subscribe to be notified for events.";
+		return "Displays rotations and schedules of Splatoon 3, or subscribe to be notified for events.";
 	}
 
 	examples() {
