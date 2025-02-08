@@ -313,6 +313,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	private async rotationUpdate() {
+		console.log("Updating Splatoon 3 rotation...");
 		const messages = new Map<keyof typeof this.events, { str: string, img?: string }[]>();
 
 		const challenge = (await Splatoon3.getChallenges())[0];
