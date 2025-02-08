@@ -261,7 +261,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	private stageStr(rotation: SplatRotation | FestRotation) {
-		return `${rotation.stage1} | ${rotation.stage2}`;
+		return `${rotation.stage1.name} | ${rotation.stage2.name}`;
 	}
 
 	private stagesStr(stages: SplatStage[]) {
@@ -269,7 +269,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	private salmonStageStr(rotation: SalmonSchedule) {
-		return `${rotation.stage} | ${rotation.boss}`;
+		return `${rotation.stage.name} | ${rotation.boss}`;
 	}
 
 	private salmonWeaponStr(rotation: SalmonSchedule) {
