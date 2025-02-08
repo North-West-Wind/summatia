@@ -251,7 +251,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const nextTime = this.getNextPeriodIndex(challenge.timePeriods);
 			description += `\n# ${challenge.name}\n`;
 			description += challenge.desc.replace(/<br *\/>/g, "  \n") + "\n\n";
-			description += challenge.eventRule.replace(/<br *\/>/g, "  \n");
+			description += challenge.eventRule.replace(/<br *\/>/g, "  \n") + "\n\n";
 			description += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}**`;
 			if (ii == 0 && this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime))
 				description += " **(Now!)**";
