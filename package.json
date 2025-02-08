@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Talk to Summatia!",
   "main": "dist/index.js",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "build:dev": "tsc -w",
