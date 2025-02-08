@@ -1,10 +1,9 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, ModalBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel, AttachmentBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel, AttachmentBuilder } from "discord.js";
 import { Client } from "splatoon3api";
-import { ChallengeTimePeriod, FestMatchSetting, FestRegion, FestRotation, RankedModes, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
+import { ChallengeTimePeriod, FestRegion, FestRotation, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
-import { name, version } from "../../../package.json";
 import moment, { MomentInput } from "moment";
 import { Initialized, SummatiaListeners } from "..";
 import { BitflagManipulator } from "../../database-providers/splatoon3";
@@ -17,7 +16,7 @@ import { imageMeta } from "image-meta";
 import { imageMessageContent } from "../../matrix/sender";
 
 const Splatoon3 = new Client();
-Splatoon3.options.userAgent = `${name}/${version}`;
+Splatoon3.options.userAgent = `summatia/1.0.0`;
 Splatoon3.options.cache = { enabled: true, ttl: 60 };
 
 type DoubleRotation = {
