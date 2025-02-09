@@ -104,8 +104,9 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				.addOptions(Array.from(Object.entries(this.events)).map(([k, v]) => new StringSelectMenuOptionBuilder().setLabel(v).setValue(k).setDefault(selection.has(k))));
 			const confirm = new ButtonBuilder().setCustomId("confirm").setLabel("Confirm").setStyle(ButtonStyle.Success);
 			const cancel = new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Danger);
-			const row = new ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>().addComponents(select, confirm, cancel);
-			const res = await interaction.reply({ content: "Select or deselect events", components: [row] });
+			const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+			const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, cancel);
+			const res = await interaction.reply({ content: "Select or deselect events", components: [row, row2] });
 			try {
 				const collector = res.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
 				collector.on("collect", int => {
