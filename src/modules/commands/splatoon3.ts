@@ -91,8 +91,9 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		const subcommand = interaction.options.getSubcommand();
 		if (!subcommand) {
+			await interaction.deferReply();
 			const lobby = interaction.options.getString("lobby");
-			await interaction.reply(await this.showSchedule(lobby));
+			await interaction.editReply(await this.showSchedule(lobby));
 		} else if (subcommand == "subscribe") {
 			let selection = new Set<string>();
 			const select = new StringSelectMenuBuilder()
