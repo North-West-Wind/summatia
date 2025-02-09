@@ -90,7 +90,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		const subcommand = interaction.options.getSubcommand();
-		if (!subcommand) {
+		if (subcommand == "schedule") {
 			await interaction.deferReply();
 			const lobby = interaction.options.getString("lobby");
 			await interaction.editReply(await this.showSchedule(lobby));
@@ -130,8 +130,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
 		if (!this.isValidMatrixCommand(summatia, event)) return;
 		const args = this.getMatrixArgs(summatia, event.content.body);
-		if (!args.length) await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.showSchedule(null)));
-		else if (this.lobbies.includes(args[0])) await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.showSchedule(args[0])));
+		if (!args.length || args[0] == "schedule") await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.showSchedule(null)));
+		else if (this.lobbies.includes(args[0]) || (args[0] == "schedule" && this.lobbies.includes(args[1]))) await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.showSchedule(args[0])));
 		else if (args[0] == "subscribe") {
 			args.shift();
 			const selection = new Set<string>();
