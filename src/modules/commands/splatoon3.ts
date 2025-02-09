@@ -207,7 +207,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			if (!rota) {
 				if (!hasFest) {
 					hasFest = true;
-					description += "  \nLooks like a Splatfest is going on!";
+					if (ii == 0) description += "\n\nLooks like a Splatfest is going on!";
+					else description += "\n\nA Splatfest is gonna happen!";
 				}
 				continue;
 			}
@@ -229,7 +230,8 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			if (!rota1 || !rota2) {
 				if (!hasFest) {
 					hasFest = true;
-					description += `  \nLooks like ${festRotation ? "there isn't a Splatfest right now" : "a Splatfest is going on"}!`;
+					if (ii == 0) description += `\n\nLooks like ${festRotation ? "there isn't a Splatfest right now" : "a Splatfest is going on"}!`;
+					else description += `\n\n${festRotation ? "The Splatfest ends" : "A Splatfest starts"} here!`;
 				}
 				continue;
 			}
