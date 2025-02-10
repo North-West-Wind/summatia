@@ -1,4 +1,4 @@
-import { Message } from "discord.js";
+import { ChatInputCommandInteraction, Message, SlashCommandBuilder } from "discord.js";
 import { RoomMessageEvent } from "../matrix/types/events";
 
 export enum SummatiaListeners {
@@ -54,4 +54,9 @@ export interface DiscordHandler {
 export interface Helpful {
 	description(): string;
 	examples(): string[];
+}
+
+export interface DiscordCommandHandler {
+	getSlashCommandBuilder(summatia: Summatia): SlashCommandBuilder;
+	onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction): any | Promise<any>;
 }

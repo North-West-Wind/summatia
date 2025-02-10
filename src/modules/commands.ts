@@ -1,9 +1,9 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { Helpful, MatrixHandler, SummatiaListeners, SummatiaModule, SummatiaOption } from ".";
+import { DiscordCommandHandler, Helpful, MatrixHandler, SummatiaListeners, SummatiaModule, SummatiaOption } from ".";
 import { RoomMessageEvent } from "../matrix/types/events";
 import { Summatia } from "../summatia";
 
-export abstract class SummatiaCommandModule extends SummatiaModule implements MatrixHandler {
+export abstract class SummatiaCommandModule extends SummatiaModule implements MatrixHandler, DiscordCommandHandler {
 	constructor(name: string, options: SummatiaOption = { listen: [] }) {
 		options.listen = addNoRepeat(options.listen, SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_COMMAND_INTERACTION);
 		super(name, options);
@@ -44,6 +44,18 @@ export abstract class SummatiaMatrixCommandHelpModule extends SummatiaModule imp
 	abstract description(): string;
 	abstract examples(): string[];
 	abstract onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent): any | Promise<any>;
+}
+
+export abstract class SummatiaDiscordCommandHelpModule extends SummatiaModule implements Helpful, DiscordCommandHandler {
+	constructor(name: string, options: SummatiaOption = { listen: [] }) {
+		options.listen = addNoRepeat(options.listen, SummatiaListeners.DISCORD_COMMAND_INTERACTION, SummatiaListeners.HELP_DISCORD, SummatiaListeners.HELP);
+		super(name, options);
+	}
+
+	abstract description(): string;
+	abstract examples(): string[];
+	abstract getSlashCommandBuilder(summatia: Summatia): SlashCommandBuilder;
+	abstract onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction): any | Promise<any>;
 }
 
 function addNoRepeat<T>(arr: T[], ...additions: T[]): T[] {
