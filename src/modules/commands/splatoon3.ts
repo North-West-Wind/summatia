@@ -345,11 +345,13 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	private async setSubscriptions(summatia: Summatia, channelOrRoom: string, subs: string[]) {
 		const other = /^\d+$/.test(channelOrRoom) ? await summatia.database.providers.bridge.getChannelRoom(channelOrRoom) : await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
 		const manipulator = new BitflagManipulator(0);
-		const cSubs = Array.from(Object.keys(this.events)).filter(s => !subs.includes(s));
-		subs.forEach((sub, ii) => {
+		const keys = Array.from(Object.keys(this.events));
+		const cSubs = keys.filter(s => !subs.includes(s));
+		subs.forEach(sub => {
 			this.subscriptions.get(sub)?.add(channelOrRoom);
 			if (other) this.subscriptions.get(sub)?.add(other);
-			manipulator.set(ii, true);
+			const index = keys.indexOf(sub);
+			if (index >= 0) manipulator.set(index, true);
 		});
 		for (const sub of cSubs) {
 			this.subscriptions.get(sub)?.delete(channelOrRoom);
