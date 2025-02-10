@@ -26,8 +26,9 @@ export class Splatoon3DatabaseProvider extends SummatiaDatabaseProvider {
 	}
 
 	async setSubscriptions(id: string, manipulator: BitflagManipulator) {
-		const row = await this.get("SELECT id FROM s3subs WHERE id = ?", [id]);
-		if (row) {
+		const row = await this.get<{ id: string }>("SELECT id FROM s3subs WHERE id = ?", [id]);
+		console.log("Exist?", !!row?.id, "ID:", id, "Bitflag:", manipulator.bitflag);
+		if (row?.id) {
 			if (!manipulator.bitflag) await this.run("DELETE FROM s3subs WHERE id = ?", [id]);
 			else await this.run("UPDATE s3subs SET bitflag = ? WHERE id = ?", [manipulator.bitflag, id]);
 		} else if (manipulator.bitflag) await this.run("INSERT INTO s3subs VALUES (?, ?)", [id, manipulator.bitflag]);
