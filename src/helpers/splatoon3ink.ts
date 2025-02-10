@@ -28,7 +28,7 @@ export class Splatoon3ExtraClient {
 		let fest: { [key in FestRegion]: { data: { festRecords: { nodes: FestRecord[] } } } };
 		if (this.shouldUseCache(this.festData)) fest = this.festData!.data;
 		else {
-			const res = await fetch("https://splatoon3.ink/data/festivals.json");
+			const res = await fetch("https://splatoon3.ink/data/festivals.json", { headers: { "User-Agent": this.userAgent } });
 			fest = (await res.json()) as ({ [key in FestRegion]: { data: { festRecords: { nodes: FestRecord[] } } } });
 			this.festData = { data: fest, time: Date.now() };
 		}
@@ -42,7 +42,7 @@ export class Splatoon3ExtraClient {
 		let coop: EggstraWorkSchedule[];
 		if (this.shouldUseCache(this.coopData)) coop = this.coopData!.data;
 		else {
-			const res = await fetch("https://splatoon3.ink/data/schedules.json");
+			const res = await fetch("https://splatoon3.ink/data/schedules.json", { headers: { "User-Agent": this.userAgent } });
 			coop = (await res.json()); // this is not quite right yet
 			coop = coop.map(s => {
 				s.setting.coopStage.image = (s.setting.coopStage.image as any).url;

@@ -366,7 +366,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		const isDiscord = /^\d+$/.test(channelOrRoom);
 		let message = `This ${isDiscord ? "channel" : "room"} is will be notified for`;
 		if (subs.length) message += `: **${subs.sort().join("**, **")}**`;
-		else message += "nothing :<";
+		else message += " nothing :<";
 
 		const other = isDiscord ? await summatia.database.providers.bridge.getChannelRoom(channelOrRoom) : await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
 		if (other) {
