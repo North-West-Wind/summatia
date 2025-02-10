@@ -104,7 +104,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const lobby = interaction.options.getString("lobby");
 			await interaction.editReply(await this.showSchedule(lobby));
 		} else if (subcommand == "subscribe") {
-			let selection = new Set<string>();
+			let selection = new Set<string>(this.getSubscriptionsRaw(interaction.channelId));
 			const select = new StringSelectMenuBuilder()
 				.setCustomId("subscription")
 				.setPlaceholder("Choose what event to be notified for")
@@ -115,12 +115,14 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const cancel = new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Danger);
 			const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 			const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, cancel);
-			const res = await interaction.reply({ content: "Select or deselect events", components: [row, row2] });
+			const makeContent = () => `This channel is currently notified for ${selection.size ? `**${Array.from(selection.values()).map(sub => this.events[sub as keyof typeof this.events]).join("**, **")}**` : "nothing :<"}`;
+			const res = await interaction.reply({ content: makeContent(), components: [row, row2] });
 			try {
 				const collector = res.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
-				collector.on("collect", int => {
+				collector.on("collect", async int => {
 					if (int.user.id != interaction.user.id) return;
 					selection = new Set(int.values);
+					await int.update({ content: makeContent() });
 				});
 				const button = await res.awaitMessageComponent({ filter: int => int.componentType == ComponentType.Button && int.user.id === interaction.user.id, time: 60000 });
 				if (button.customId == "confirm") {
@@ -148,12 +150,12 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const selection = new Set<string>();
 			args.forEach(arg => arg.split(",").filter(a => Array.from(Object.keys(this.events)).includes(a)).forEach(a => selection.add(a)));
 			this.setSubscriptions(summatia, roomId, Array.from(selection.values()))
-				.then(async () => await summatia.matrix.replyText(roomId, event, renderMarkdown(`Subscribed to ${selection.size ? Array.from(selection.values()).map(v => `**${(this.events as any)[v]}**`).join(", ") : "nothing :<"}`)))
+				.then(async () => await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(`Subscribed to ${selection.size ? Array.from(selection.values()).map(v => `**${(this.events as any)[v]}**`).join(", ") : "nothing :<"}`)))
 				.catch(async err => {
 					console.error(err);
 					await summatia.matrix.replyText(roomId, event, "Ah! Something went wrong! ;▵;");
 				});
-		} else if (args[0] == "subscriptions") await summatia.matrix.replyHtmlText(roomId, event, await this.getSubscriptions(summatia, roomId));
+		} else if (args[0] == "subscriptions") await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.getSubscriptions(summatia, roomId)));
 		else await summatia.matrix.replyText(roomId, event, "Unknown subcommand :<");
 	}
 	
@@ -357,25 +359,28 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		if (other) await summatia.database.providers.splatoon3.setSubscriptions(other, manipulator);
 	}
 
-	private async getSubscriptions(summatia: Summatia, channelOrRoom: string) {
-		let subs: string[] = [];
+	private getSubscriptionsRaw(channelOrRoom: string) {
+		const subs: string[] = [];
 		for (const sub in this.events)
 			if (this.subscriptions.get(sub)?.has(channelOrRoom))
-				subs.push(this.events[sub as keyof typeof this.events]);
+				subs.push(sub);
+		return subs;
+	}
 
+	private async getSubscriptions(summatia: Summatia, channelOrRoom: string) {
+		const subs = this.getSubscriptionsRaw(channelOrRoom).map(sub => this.events[sub as keyof typeof this.events]);
 		const isDiscord = /^\d+$/.test(channelOrRoom);
-		let message = `This ${isDiscord ? "channel" : "room"} is will be notified for`;
-		if (subs.length) message += `: **${subs.sort().join("**, **")}**`;
-		else message += " nothing :<";
+		let message = `This ${isDiscord ? "channel" : "room"} is will be notified for `;
+		if (subs.length) message += `**${subs.sort().join("**, **")}**`;
+		else message += "nothing :<";
 
 		const other = isDiscord ? await summatia.database.providers.bridge.getChannelRoom(channelOrRoom) : await summatia.database.providers.bridge.getRoomChannel(channelOrRoom);
 		if (other) {
-			subs = [];
-			for (const sub in this.events)
-				if (this.subscriptions.get(sub)?.has(other))
-					subs.push(this.events[sub as keyof typeof this.events]);
-
-			if (subs.length) message += `  \nBridged ${isDiscord ? "room" : "channel"} is also subscribed to: **${subs.sort().join("**, **")}**`;
+			const bridgeSubs = this.getSubscriptionsRaw(other).map(sub => this.events[sub as keyof typeof this.events]);
+			message += `  \nBridged ${isDiscord ? "room" : "channel"} is also subscribed to `;
+			if (bridgeSubs.length != subs.length || !bridgeSubs.every(s => subs.includes(s)))
+				message += `**${subs.sort().join("**, **")}**`;
+			else message += `the same events`;
 		}
 		return message;
 	}
