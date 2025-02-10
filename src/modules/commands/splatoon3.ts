@@ -10,14 +10,16 @@ import { BitflagManipulator } from "../../database-providers/splatoon3";
 import { renderMarkdown } from "../../helpers/strings";
 import { schedule } from "node-cron";
 import fetch from "node-fetch";
-import { FestRecord } from "../../matrix/types/splatoon3";
 import { imageMeta } from "image-meta";
 import { imageMessageContent } from "../../matrix/sender";
 import mimeLite from "mime-lite";
+import { Splatoon3ExtraClient } from "../../helpers/splatoon3ink";
 
 const Splatoon3 = new Client();
 Splatoon3.options.userAgent = `summatia/1.0.0`;
 Splatoon3.options.cache = { enabled: true, ttl: 60 };
+
+const Splatoon3Extra = new Splatoon3ExtraClient(Splatoon3.options.userAgent, Splatoon3.options.cache.enabled ? Splatoon3.options.cache.ttl! : 0);
 
 type DoubleRotation = {
 	mode1: (SplatRotation | FestRotation | null)[];
@@ -27,12 +29,14 @@ type DoubleRotation = {
 export class Splatoon3Command extends SummatiaCommandHelpModule implements Initialized {
 	lobbies = ["turf", "anarchy", "x", "fest", "salmon", "challenge"];
 	singleLobby = ["turf", "x"];
+	// DO NOT change this order!
 	events = {
 		festSoon: "Splatfest Sneak Peek Starts",
 		festStart: "Splatfest Starts",
 		bigRunStart: "Big Run Starts",
 		challengeStart: "Challenge Starts",
-		challengeHappen: "Challenge Happens"
+		challengeHappen: "Challenge Happens",
+		eggstraWorkStart: "Eggstra Work Starts",
 	};
 
 	subscriptions: Map<string, Set<string | Snowflake>>;
@@ -101,7 +105,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				.setPlaceholder("Choose what event to be notified for")
 				.setMinValues(0)
 				.setMaxValues(Array.from(Object.keys(this.events)).length)
-				.addOptions(Array.from(Object.entries(this.events)).map(([k, v]) => new StringSelectMenuOptionBuilder().setLabel(v).setValue(k).setDefault(selection.has(k))));
+				.addOptions(Object.entries(this.events).sort(([k1, _v1], [k2, _v2]) => k1.localeCompare(k2)).map(([k, v]) => new StringSelectMenuOptionBuilder().setLabel(v).setValue(k).setDefault(selection.has(k))));
 			const confirm = new ButtonBuilder().setCustomId("confirm").setLabel("Confirm").setStyle(ButtonStyle.Success);
 			const cancel = new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Danger);
 			const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
@@ -162,15 +166,14 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				if (data.festSchedule.challenge) description += `  \nSplatfest (Pro): ${this.stageStr(data.festSchedule.challenge)}`;
 			}
 			if (data.triColorStage) description += `  \nTricolor: ${data.triColorStage.name}`;
-
+			
 			description += "\n"
 			const coopData = await Splatoon3.getSalmonRun();
-			if (coopData.regularSchedules.length && coopData.regularSchedules[0])	{
+			if (coopData.regularSchedules.length)	{
 				description += `  \nSalmon Run: ${this.salmonStageStr(coopData.regularSchedules[0])}`;
 				description += `  \n${this.salmonWeaponStr(coopData.regularSchedules[0])}`;
 			}
-			if (coopData.bigRunSchedules.length && coopData.bigRunSchedules[0]) description += `  \nBig Run: ${this.salmonStageStr(coopData.bigRunSchedules[0])}`;
-			
+
 			const challengeData = await Splatoon3.getChallenges();
 			if (challengeData.length) {
 				const nextTime = challengeData[0].timePeriods[this.getNextPeriodIndex(challengeData[0].timePeriods)];
@@ -178,6 +181,22 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				description += `\n\n**${name}** `;
 				if (this.isNowBetweenIsos(nextTime.startTime, nextTime.endTime)) description += "is happening **right now!**";
 				else description += `will happen on **${this.isoStr(nextTime.startTime)}** (UTC+0)`;
+			}
+
+			if (coopData.bigRunSchedules.length) {
+				const schedule = coopData.bigRunSchedules[0];
+				description += `\n\n**Big Run** in **${this.salmonStageStr(schedule)}** `;
+				if (this.isNowBetweenIsos(schedule.start_time, schedule.end_time)) description += "is happening **right now!**";
+				else description += `will happen on **${this.isoStr(schedule.start_time)}** (UTC+0)`;
+			}
+
+			const eggstraData = await Splatoon3Extra.getEggstraWork();
+			if (eggstraData.length) {
+				const setting = eggstraData[0].setting;
+				description += `\n\n**Eggstra Work** in **${setting.coopStage.name}** `;
+				if (this.isNowBetweenIsos(eggstraData[0].startTime, eggstraData[0].endTime)) description += "is happening **right now!**";
+				else description += `will happen on **${this.isoStr(eggstraData[0].startTime)}** (UTC+0)`;
+				description += `  \n${setting.weapons.map(w => w.name).join(" / ")}`
 			}
 
 			return description;
@@ -192,6 +211,22 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const data = await Splatoon3.getSalmonRun();
 			description = data.regularSchedules.map((r, ii) =>
 				`**${this.isoStr(r.start_time)} - ${this.isoStr(r.end_time)}**${ii == 0 && this.isNowBetweenIsos(r.start_time, r.end_time) ? " **(Now!)**" : ""}  \n${this.salmonStageStr(r)}  \n${this.salmonWeaponStr(r)}`).join("\n\n");
+
+			if (data.bigRunSchedules.length) {
+				const schedule = data.bigRunSchedules[0];
+				description += `\n\n**Big Run** in **${this.salmonStageStr(schedule)}** `;
+				if (this.isNowBetweenIsos(schedule.start_time, schedule.end_time)) description += "is happening **right now!**";
+				else description += `will happen on **${this.isoStr(schedule.start_time)}** (UTC+0)`;
+			}
+
+			const eggstraData = await Splatoon3Extra.getEggstraWork();
+			if (eggstraData.length) {
+				const setting = eggstraData[0].setting;
+				description += `\n\n**Eggstra Work** in **${setting.coopStage.name}** `;
+				if (this.isNowBetweenIsos(eggstraData[0].startTime, eggstraData[0].endTime)) description += "is happening **right now!**";
+				else description += `will happen on **${this.isoStr(eggstraData[0].startTime)}** (UTC+0)`;
+				description += `  \n${setting.weapons.map(w => w.name).join(" / ")}`
+			}
 		} else {
 			// challenge
 			const data = await Splatoon3.getChallenges();
@@ -354,11 +389,9 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		}
 		if (bigRunStartStr) messages.set("bigRunStart", [{ str: bigRunStartStr }]);
 
-		let res = await fetch("https://splatoon3.ink/data/festivals.json");
-		const fest = (await res.json()) as ({ [key in FestRegion]: { data: { festRecords: { nodes: FestRecord[] } } } });
 		let festSoon = false;
 		let festStart = false;
-		for (const record of Array.from(Object.values(fest)).map(region => region.data.festRecords.nodes[0])) {
+		for (const record of Array.from(Object.values(await Splatoon3Extra.getFullSplatfests())).map(records => records[0])) {
 			if (!this.pastFests.has(record.__splatoon3ink_id) && record.state == "SCHEDULED") {
 				this.pastFests.add(record.__splatoon3ink_id);
 				this.summatia.database.providers.splatoon3.addPastFest(record.__splatoon3ink_id).catch(console.error);
@@ -382,6 +415,17 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 				messages.get("festStart")!.push({ str: indFestStartStr, img: record.image.url });
 			}
 		}
+
+		const eggstra = await Splatoon3Extra.getEggstraWork();
+		let eggstraWorkStartStr = "";
+		if (eggstra.length && this.isNowBetweenIsos(eggstra[0].startTime, moment(eggstra[0].startTime).add(2, "hour"))) {
+			const eggstraWork = eggstra[0];
+			eggstraWorkStartStr += `# Eggstra Work in ${eggstraWork.setting.coopStage.name}!\n`;
+			eggstraWorkStartStr += `It's happening **right now!**  \n`;
+			eggstraWorkStartStr += `**${this.isoStr(eggstraWork.startTime)}** - **${this.isoStr(eggstraWork.endTime)}** (UTC+00:00)  \n`;
+			eggstraWorkStartStr += `${eggstraWork.setting.weapons.map(w => w.name).join(", ")}`;
+		}
+		if (eggstraWorkStartStr) messages.set("eggstraWorkStart", [{ str: eggstraWorkStartStr }]);
 
 		for (const [key, message] of messages.entries()) {
 			const bridges = new Set<string>();

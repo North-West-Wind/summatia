@@ -1,3 +1,5 @@
+import { SalmonRunWeapon, SalmonSchedule, SplatStage } from "splatoon3api/dist/types";
+
 export type FestRecord = {
 	__splatoon3ink_id: string;
 	id: string;
@@ -18,4 +20,16 @@ type FestTeam = {
 	teamName: string;
 	color: { a: number, r: number, g: number, b: number };
 	image: { url: string };
+}
+
+export type EggstraWorkSchedule = {
+	startTime: string;
+	endTime: string;
+	setting: EggstraWorkSetting;
+}
+
+type EggstraWorkSetting = {
+	rule: "TEAM_CONTEST";
+	coopStage: SplatStage;
+	weapons: SalmonRunWeapon[];
 }
