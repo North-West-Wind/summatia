@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, GuildMember, Message, PartialGuildMember, SlashCommandBuilder } from "discord.js";
-import { RoomMessageEvent } from "../matrix/types/events";
+import { RoomMessageEvent } from "../types/events";
 
 export enum SummatiaListeners {
 	// called before starting in setup

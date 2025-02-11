@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { DiscordCommandHandler, Helpful, MatrixHandler, SummatiaListeners, SummatiaModule, SummatiaOption } from ".";
-import { RoomMessageEvent } from "../matrix/types/events";
+import { RoomMessageEvent } from "../types/events";
 import { Summatia } from "../summatia";
 
 export abstract class SummatiaCommandModule extends SummatiaModule implements MatrixHandler, DiscordCommandHandler {

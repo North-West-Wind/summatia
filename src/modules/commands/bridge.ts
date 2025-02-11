@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, ChannelType, GuildChannel } from "discord.js";
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 

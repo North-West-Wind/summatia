@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { SummatiaCommandHelpModule, SummatiaCommandModule } from "../commands";
 import { Summatia } from "../../summatia";
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { SummatiaListeners } from "..";
 
 export default class UnlistenCommand extends SummatiaCommandHelpModule {

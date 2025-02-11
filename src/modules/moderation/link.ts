@@ -1,7 +1,7 @@
 import { Message, Snowflake, TextChannel } from "discord.js";
 import { Summatia } from "../../summatia";
 import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { cleanUrl } from "../../helpers/strings";
 
 const THRESHOLD = 5,

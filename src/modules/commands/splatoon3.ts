@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel, AttachmentBuilder } from "discord.js";
 import { Client } from "splatoon3api";
 import { ChallengeTimePeriod, FestRegion, FestRotation, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import moment, { MomentInput } from "moment";
@@ -11,7 +11,7 @@ import { renderMarkdown } from "../../helpers/strings";
 import { schedule } from "node-cron";
 import fetch from "node-fetch";
 import { imageMeta } from "image-meta";
-import { imageMessageContent } from "../../matrix/sender";
+import { imageMessageContent } from "../../helpers/matrix/sender";
 import mimeLite from "mime-lite";
 import { Splatoon3ExtraClient } from "../../helpers/splatoon3ink";
 

@@ -1,6 +1,6 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
-import { RoomMessageEvent } from "./matrix/types/events";
+import { RoomMessageEvent } from "./types/events";
 import { DiscordGuildMemberHandler, DiscordHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";

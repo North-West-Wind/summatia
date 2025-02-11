@@ -1,6 +1,6 @@
 import { AbortSignal } from "node-fetch/externals";
 import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from ".";
-import { RoomMessageEvent } from "../matrix/types/events";
+import { RoomMessageEvent } from "../types/events";
 import { Summatia } from "../summatia";
 import { Message, MessageType, OmitPartialGroupDMChannel } from "discord.js";
 import fetch from "node-fetch";

@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, MessageFlags, Snowflake, TextChannel, PartialTextBasedChannelFields, PermissionFlagsBits, SlashCommandIntegerOption } from "discord.js";
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import { Initialized, Startup, SummatiaListeners } from "..";

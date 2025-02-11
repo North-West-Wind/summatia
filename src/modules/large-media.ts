@@ -1,7 +1,7 @@
 import { MatrixClient } from "matrix-bot-sdk";
 import { Helpful, MatrixHandler, SummatiaListeners, SummatiaModule } from ".";
 import { MediaEventContent } from "matrix-js-sdk/lib/types";
-import { RoomMessageEvent } from "../matrix/types/events";
+import { RoomMessageEvent } from "../types/events";
 import { Summatia } from "../summatia";
 
 if (!process.env.MATRIX_BRIDGE_BOT) throw new Error("bridge bot id not set");

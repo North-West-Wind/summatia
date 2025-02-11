@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandStringOption } from "discord.js";
 import { Helpful, MatrixHandler, SummatiaListeners } from "..";
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import MarkdownIt from "markdown-it";

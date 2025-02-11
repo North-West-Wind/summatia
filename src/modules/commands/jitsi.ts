@@ -1,4 +1,4 @@
-import { RoomMessageEvent } from "../../matrix/types/events";
+import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaMatrixCommandHelpModule } from "../commands";
 
