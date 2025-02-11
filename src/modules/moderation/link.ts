@@ -1,7 +1,6 @@
 import { Message, Snowflake, TextChannel } from "discord.js";
 import { Summatia } from "../../summatia";
-import { ModerationModule } from "../moderation";
-import { Initialized, MatrixHandler, SummatiaListeners } from "..";
+import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
 import { RoomMessageEvent } from "../../matrix/types/events";
 import { cleanUrl } from "../../helpers/strings";
 
@@ -30,13 +29,13 @@ type UserLink = {
 // matrix types
 type RoomID = string;
 
-export class LinkModerationModule extends ModerationModule implements MatrixHandler, Initialized {
+export class LinkModerationModule extends SummatiaModule implements MatrixHandler, DiscordHandler, Initialized {
 	guildUserLinks: Map<GuildID, Map<UserID, UserLink>>;
 	channelLinks: Map<ChannelID, { deleteTimeout: NodeJS.Timeout, messages: { message: Message, urls: string[] }[] }>;
 	roomLinks: Map<RoomID, { deleteTimeout: NodeJS.Timeout, events: { event: RoomMessageEvent, urls: string[] }[] }>;
 
 	constructor() {
-		super("link-mod", { listen: [SummatiaListeners.INIT, SummatiaListeners.MATRIX_MESSAGE] });
+		super("link-mod", { listen: [SummatiaListeners.INIT, SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_MESSAGE] });
 		this.guildUserLinks = new Map();
 		this.channelLinks = new Map();
 		this.roomLinks = new Map();
