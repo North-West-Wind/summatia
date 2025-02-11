@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Message, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, GuildMember, Message, PartialGuildMember, SlashCommandBuilder } from "discord.js";
 import { RoomMessageEvent } from "../matrix/types/events";
 
 export enum SummatiaListeners {
@@ -16,6 +16,7 @@ export enum SummatiaListeners {
 	MATRIX_MESSAGE,
 	DISCORD_MESSAGE,
 	DISCORD_COMMAND_INTERACTION,
+	DISCORD_GUILD_MEMBER,
 }
 
 export type SummatiaOption = {
@@ -59,4 +60,10 @@ export interface Helpful {
 export interface DiscordCommandHandler {
 	getSlashCommandBuilder(summatia: Summatia): SlashCommandBuilder;
 	onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction): any | Promise<any>;
+}
+
+export interface DiscordGuildMemberHandler {
+	onGuildMemberAdd(summatia: Summatia, member: GuildMember): any | Promise<any>;
+	onGuildMemberRemove(summatia: Summatia, member: GuildMember | PartialGuildMember): any | Promise<any>;
+	onGuildMemberUpdate(summatia: Summatia, member: GuildMember | PartialGuildMember): any | Promise<any>;
 }

@@ -1,7 +1,7 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./matrix/types/events";
-import { DiscordHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
+import { DiscordGuildMemberHandler, DiscordHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
@@ -113,6 +113,20 @@ export class Summatia {
 					else await interaction.reply({ content: "It didn't work :(", ephemeral: true });
 				}
 			}
+		});
+
+		this.discord.on(Events.GuildMemberAdd, member => {
+			if (member.id == member.client.user.id || member.user.bot) return;
+			this.modules[SummatiaListeners.DISCORD_GUILD_MEMBER]
+				?.forEach(module => (module as unknown as DiscordGuildMemberHandler).onGuildMemberAdd(this, member));
+		}).on(Events.GuildMemberRemove, member => {
+			if (member.id == member.client.user.id || member.user.bot) return;
+			this.modules[SummatiaListeners.DISCORD_GUILD_MEMBER]
+				?.forEach(module => (module as unknown as DiscordGuildMemberHandler).onGuildMemberRemove(this, member));
+		}).on(Events.GuildMemberUpdate, member => {
+			if (member.id == member.client.user.id || member.user.bot) return;
+			this.modules[SummatiaListeners.DISCORD_GUILD_MEMBER]
+				?.forEach(module => (module as unknown as DiscordGuildMemberHandler).onGuildMemberUpdate(this, member));
 		});
 
 		// init modules with INIT
