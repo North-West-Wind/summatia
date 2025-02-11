@@ -1,7 +1,7 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./types/events";
-import { DiscordGuildMemberHandler, DiscordHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
+import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, DiscordReactionHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
@@ -127,6 +127,25 @@ export class Summatia {
 			if (member.id == member.client.user.id || member.user.bot) return;
 			this.modules[SummatiaListeners.DISCORD_GUILD_MEMBER]
 				?.forEach(module => (module as unknown as DiscordGuildMemberHandler).onGuildMemberUpdate(this, member));
+		});
+
+		this.discord.on(Events.GuildEmojiCreate, emoji => {
+			this.modules[SummatiaListeners.DISCORD_GUILD_EMOJI]
+				?.forEach(module => (module as unknown as DiscordEmojiHandler).onEmojiCreate(this, emoji));
+		}).on(Events.GuildEmojiDelete, emoji => {
+			this.modules[SummatiaListeners.DISCORD_GUILD_EMOJI]
+				?.forEach(module => (module as unknown as DiscordEmojiHandler).onEmojiDelete(this, emoji));
+		}).on(Events.GuildEmojiUpdate, (oldEmoji, newEmoji) => {
+			this.modules[SummatiaListeners.DISCORD_GUILD_EMOJI]
+				?.forEach(module => (module as unknown as DiscordEmojiHandler).onEmojiUpdate(this, oldEmoji, newEmoji));
+		})
+
+		this.discord.on(Events.MessageReactionAdd, (reaction, user, details) => {
+			this.modules[SummatiaListeners.DISCORD_MESSAGE_REACTION]
+				?.forEach(module => (module as unknown as DiscordReactionHandler).onMessageReactionAdd(this, reaction, user, details));
+		}).on(Events.MessageReactionRemove, (reaction, user, details) => {
+			this.modules[SummatiaListeners.DISCORD_MESSAGE_REACTION]
+				?.forEach(module => (module as unknown as DiscordReactionHandler).onMessageReactionRemove(this, reaction, user, details));
 		});
 
 		// init modules with INIT

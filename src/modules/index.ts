@@ -1,5 +1,7 @@
-import { ChatInputCommandInteraction, GuildMember, Message, PartialGuildMember, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, GuildEmoji, GuildMember, Message, MessageReaction, MessageReactionEventDetails, PartialGuildMember, PartialMessageReaction, PartialUser, SlashCommandBuilder, User } from "discord.js";
 import { RoomMessageEvent } from "../types/events";
+
+type PromiseOpt<T> = T | Promise<T>;
 
 export enum SummatiaListeners {
 	// called before starting in setup
@@ -15,8 +17,10 @@ export enum SummatiaListeners {
 	// listen to Matrix or Discord events
 	MATRIX_MESSAGE,
 	DISCORD_MESSAGE,
+	DISCORD_MESSAGE_REACTION,
 	DISCORD_COMMAND_INTERACTION,
 	DISCORD_GUILD_MEMBER,
+	DISCORD_GUILD_EMOJI,
 }
 
 export type SummatiaOption = {
@@ -66,4 +70,15 @@ export interface DiscordGuildMemberHandler {
 	onGuildMemberAdd(summatia: Summatia, member: GuildMember): any | Promise<any>;
 	onGuildMemberRemove(summatia: Summatia, member: GuildMember | PartialGuildMember): any | Promise<any>;
 	onGuildMemberUpdate(summatia: Summatia, member: GuildMember | PartialGuildMember): any | Promise<any>;
+}
+
+export interface DiscordEmojiHandler {
+	onEmojiCreate(summatia: Summatia, emoji: GuildEmoji): PromiseOpt<any>;
+	onEmojiDelete(summatia: Summatia, emoji: GuildEmoji): PromiseOpt<any>;
+	onEmojiUpdate(summatia: Summatia, oldEmoji: GuildEmoji, newEmoji: GuildEmoji): PromiseOpt<any>;
+}
+
+export interface DiscordReactionHandler {
+	onMessageReactionAdd(summatia: Summatia, reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser, details: MessageReactionEventDetails): any | Promise<any>;
+	onMessageReactionRemove(summatia: Summatia, reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser, details: MessageReactionEventDetails): any | Promise<any>;
 }

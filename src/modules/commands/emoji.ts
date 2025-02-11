@@ -1,17 +1,25 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, ModalBuilder, SlashCommandAttachmentOption, SlashCommandStringOption, Guild, Snowflake, Message, GuildEmoji, EmbedBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, InteractionResponse } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, ModalBuilder, SlashCommandAttachmentOption, SlashCommandStringOption, Guild, Snowflake, Message, GuildEmoji, EmbedBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, InteractionResponse, MessageReaction, MessageReactionEventDetails, PartialMessageReaction, PartialUser, User } from "discord.js";
 import { Summatia } from "../../summatia";
 import { SummatiaDiscordCommandHelpModule } from "../commands";
-import { DiscordHandler, SummatiaListeners } from "..";
+import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialized, SummatiaListeners } from "..";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 
+const REF_SAVE_INTERVAL = 30000;
 type EmojiCacheEntry = { id?: Snowflake, url: string, active: boolean, ref: boolean };
 
-export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements DiscordHandler {
+export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements DiscordHandler, DiscordEmojiHandler, DiscordReactionHandler, Initialized {
 	emojis: Map<Snowflake, Map<string, EmojiCacheEntry>>;
 
 	constructor() {
-		super("emoji", { listen: [SummatiaListeners.DISCORD_MESSAGE] });
+		super("emoji", { listen: [SummatiaListeners.INIT, SummatiaListeners.DISCORD_MESSAGE, SummatiaListeners.DISCORD_MESSAGE_REACTION, SummatiaListeners.DISCORD_GUILD_EMOJI] });
 		this.emojis = new Map();
+	}
+
+	init(summatia: Summatia) {
+		setInterval(async () => {
+			for (const [id, map] of this.emojis.entries())
+				await summatia.database.providers.emoji.updateEmojisRef(id, Array.from(map.entries()).map(([name, emoji]) => ({ name, ...emoji })));
+		}, REF_SAVE_INTERVAL);
 	}
 
 	description() {
@@ -51,6 +59,31 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		}
 	}
 
+	async onEmojiCreate(summatia: Summatia, emoji: GuildEmoji) {
+		// manually modified emojis. re-sync
+		await this.setupGuild(summatia, emoji.guild);
+	}
+
+	async onEmojiDelete(summatia: Summatia, emoji: GuildEmoji) {
+		if (!emoji.name) return;
+		await this.deleteEmoji(summatia, emoji.guild.id, emoji.name);
+	}
+
+	async onEmojiUpdate(summatia: Summatia, oldEmoji: GuildEmoji, newEmoji: GuildEmoji) {
+		if (!oldEmoji.name || !newEmoji.name || oldEmoji.name == newEmoji.name) return;
+		await this.deleteEmoji(summatia, oldEmoji.guild.id, oldEmoji.name);
+		await this.addEmoji(summatia, newEmoji.guild.id, newEmoji);
+	}
+
+	onMessageReactionAdd(_summatia: Summatia, reaction: MessageReaction | PartialMessageReaction) {
+		if (!reaction.message.guildId || !this.emojis.has(reaction.message.guildId)) return;
+		const map = this.emojis.get(reaction.message.guildId)!;
+		if (reaction.emoji.name && map.has(reaction.emoji.name))
+			map.get(reaction.emoji.name)!.ref = true;
+	}
+
+	onMessageReactionRemove() { }
+
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		if (!interaction.guild) return await interaction.reply("I can only do this in servers!");
 		const subcommand = interaction.options.getSubcommand();
@@ -71,13 +104,13 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					await interaction.reply(`Replacing <:${replacement.name}:${replacement.id}>. Yoink!`);
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: attachment.url, name: name || attachment.name.split(".").slice(0, -1).join(".") });
-					await this.addEmoji(interaction.guildId!, emoji);
-					await this.replaceEmoji(interaction.guildId!, replacement.name);
+					await this.addEmoji(summatia, interaction.guildId!, emoji);
+					await this.replaceEmoji(summatia, interaction.guildId!, replacement.name);
 					await interaction.followUp(`Hello <:${emoji.name}:${emoji.id}>!`);
 				} else {
 					// no replacement needed!
 					const emoji = await interaction.guild.emojis.create({ attachment: attachment.url, name: name || attachment.name.split(".").slice(0, -1).join(".") });
-					await this.addEmoji(interaction.guildId!, emoji);
+					await this.addEmoji(summatia, interaction.guildId!, emoji);
 					await interaction.reply(`Hello <:${emoji.name}:${emoji.id}>!`);
 				}
 				break;
@@ -98,13 +131,13 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					await int.update({ content: `Replacing <:${replacement.name}:${replacement.id}>. Yoink!`, embeds: [], components: [], files: [] });
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: newEmoji.url, name });
-					await this.useEmoji(interaction.guildId!, name, emoji.id);
-					await this.replaceEmoji(interaction.guildId!, replacement.name);
+					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
+					await this.replaceEmoji(summatia, interaction.guildId!, replacement.name);
 					await interaction.followUp(`Hello <:${emoji.name}:${emoji.id}>!`);
 				} else {
 					// no replacement needed!
 					const emoji = await interaction.guild.emojis.create({ attachment: newEmoji.url, name: int.values[0] });
-					await this.useEmoji(interaction.guildId!, name, emoji.id);
+					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
 					await int.update({ content: `Hello <:${emoji.name}:${emoji.id}>!`, embeds: [], components: [], files: [] });
 				}
 				break;
@@ -233,6 +266,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			await summatia.database.providers.emoji.setEmojis(guildId, Array.from(this.emojis.get(guildId)!.entries()).map(([name, emoji]) => ({ name, ...emoji })))
 	}
 
+	// CLOCK algorithm replacement policy
 	private async findReplacement(guildId: Snowflake) {
 		if (!this.emojis.has(guildId)) return undefined;
 		const emojis = Array.from(this.emojis.get(guildId)!.entries()).filter(([_, e]) => e.active);
@@ -245,26 +279,35 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		return { name: emojis[0][0], ...emojis[0][1] };
 	}
 
-	private async addEmoji(guildId: Snowflake, emoji: GuildEmoji) {
+	private async addEmoji(summatia: Summatia, guildId: Snowflake, emoji: GuildEmoji) {
 		if (!this.emojis.has(guildId)) this.emojis.set(guildId, new Map());
 		this.emojis.get(guildId)!.set(emoji.name!, { id: emoji.id, url: emoji.url, active: true, ref: false });
+		await summatia.database.providers.emoji.addEmoji(guildId, emoji.name!, { url: emoji.url, active: true, ref: false });
 	}
 
-	private async useEmoji(guildId: Snowflake, name: string, id: Snowflake) {
+	private async useEmoji(summatia: Summatia, guildId: Snowflake, name: string, id: Snowflake) {
 		if (!this.emojis.has(guildId)) return;
 		const emoji = this.emojis.get(guildId)!.get(name);
 		if (emoji) {
 			emoji.id = id;
 			emoji.active = true;
+			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, true);
 		}
 	}
 
-	private async replaceEmoji(guildId: Snowflake, oldEntry: string) {
+	private async replaceEmoji(summatia: Summatia, guildId: Snowflake, name: string) {
 		if (!this.emojis.has(guildId)) return;
-		const oldCache = this.emojis.get(guildId)!.get(oldEntry);
+		const oldCache = this.emojis.get(guildId)!.get(name);
 		if (oldCache) {
 			oldCache.id = undefined;
 			oldCache.active = false;
+			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, false);
 		}
+	}
+
+	private async deleteEmoji(summatia: Summatia, guildId: Snowflake, name: string) {
+		if (!this.emojis.has(guildId)) return;
+		if (this.emojis.get(guildId)!.delete(name))
+			await summatia.database.providers.emoji.removeEmoji(guildId, name);
 	}
 }

@@ -40,4 +40,18 @@ export class EmojiDatabaseProvider extends SummatiaDatabaseProvider {
 	async removeEmoji(guildId: Snowflake, name: string) {
 		await this.run("DELETE FROM guildEmojis WHERE guildId = ? AND name = ?", [guildId, name]);
 	}
+
+	async updateEmojisRef(guildId: Snowflake, emojis: { name: string, ref: boolean }[]) {
+		for (const emoji of emojis)
+			await this.run("UPDATE guildEmojis SET ref = ? WHERE guildId = ? AND name = ?", [emoji.ref ? 1 : 0, guildId, emoji.name]);
+	}
+
+	async addEmoji(guildId: Snowflake, name: string, emoji: { url: string, active: boolean, ref: boolean }) {
+		const row = await this.get<{ name: string }>("SELECT name FROM guildEmojis WHERE guildId = ? AND name = ?", [guildId, name]);
+		if (!row) await this.run("INSERT INTO guildEmojis VALUES (?, ?, ?, ?, ?)", [guildId, name, emoji.url, emoji.active ? 1 : 0, emoji.ref ? 1 : 0]);
+	}
+
+	async updateEmojiActive(guildId: Snowflake, name: string, active: boolean) {
+		await this.run("UPDATE guildEmojis SET ref = ? WHERE guildId = ? AND name = ?", [active ? 1 : 0, guildId, name]);
+	}
 }
