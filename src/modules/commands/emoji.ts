@@ -60,6 +60,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	async onEmojiCreate(summatia: Summatia, emoji: GuildEmoji) {
+		if (emoji.author?.id === summatia.discord.user.id) return;
 		// manually modified emojis. re-sync
 		await this.setupGuild(summatia, emoji.guild);
 	}
