@@ -11,6 +11,7 @@ import { JitsiCommand } from "./modules/commands/jitsi";
 import { BridgeCommand } from "./modules/commands/bridge";
 import { Splatoon3Command } from "./modules/commands/splatoon3";
 import { InviteModerationModule } from "./modules/moderation/invite";
+import { EmojiCommand } from "./modules/commands/emoji";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);
@@ -20,6 +21,7 @@ import { InviteModerationModule } from "./modules/moderation/invite";
 	summatia.addModule(new LargeMediaModule());
 	// command modules
 	summatia.addModule(new BridgeCommand());
+	summatia.addModule(new EmojiCommand());
 	summatia.addModule(new HelpCommand());
 	summatia.addModule(new JitsiCommand());
 	//summatia.addModule(new ListenCommand());

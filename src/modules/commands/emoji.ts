@@ -89,6 +89,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		if (!interaction.guild) return await interaction.reply("I can only do this in servers!");
+		if (!(await interaction.guild.members.fetchMe()).permissions.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "I don't have permission to modify emojis!", flags: MessageFlags.Ephemeral });
 		const subcommand = interaction.options.getSubcommand();
 
 		switch (subcommand) {
