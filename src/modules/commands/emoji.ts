@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, ModalBuilder, SlashCommandAttachmentOption, SlashCommandStringOption, Guild, Snowflake, Message, GuildEmoji, EmbedBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, InteractionResponse, MessageReaction, MessageReactionEventDetails, PartialMessageReaction, PartialUser, User, SlashCommandBooleanOption } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, ModalBuilder, SlashCommandAttachmentOption, SlashCommandStringOption, Guild, Snowflake, Message, GuildEmoji, EmbedBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, InteractionResponse, MessageReaction, MessageReactionEventDetails, PartialMessageReaction, PartialUser, User, SlashCommandBooleanOption, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { Summatia } from "../../summatia";
 import { SummatiaDiscordCommandHelpModule } from "../commands";
 import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialized, SummatiaListeners } from "..";
@@ -93,6 +93,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 		switch (subcommand) {
 			case "add": {
+				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
+
 				const attachment = interaction.options.getAttachment("image", true);
 				const name = interaction.options.getString("name");
 				if (!attachment.contentType?.startsWith("image/")) return await interaction.reply("The attachment is not an image! -▵-'");
@@ -122,7 +124,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				const animated = !!interaction.options.getBoolean("animated");
 				await interaction.deferReply();
 				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
-				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => !emoji.active).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
+				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => !emoji.active && emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
 				const newEmoji = this.emojis.get(interaction.guildId!)?.get(name);
@@ -147,14 +149,17 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				break;
 			}
 			case "delete": {
+				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
+				const animated = !!interaction.options.getBoolean("animated");
 				await interaction.deferReply();
 				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
-				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
+				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
 				const emoji = this.emojis.get(interaction.guildId!)?.get(name);
 				if (!emoji) return await int.update({ content: "You chose the emoji but also didn't. Maybe someone else updated it?", embeds: [], components: [], files: [] });
 				if (emoji.active && emoji.id) await interaction.guild.emojis.delete(emoji.id);
+				await this.deleteEmoji(summatia, interaction.guildId!, name);
 				await int.update({ content: `Poof! **${name}** is gone.`, embeds: [], components: [], files: [] });
 				break;
 			}
