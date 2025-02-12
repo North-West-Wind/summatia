@@ -100,7 +100,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				const attachment = interaction.options.getAttachment("image", true);
 				const name = interaction.options.getString("name");
 				if (!attachment.contentType?.startsWith("image/")) return await interaction.reply("The attachment is not an image! -▵-'");
-				if (attachment.size >= 1 * 1024 * 1024) return await interaction.reply("The image is too big! >▵<");
+				if (attachment.size >= 256 * 1024) return await interaction.reply("The image is too big! >▵<");
 
 				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 				const replacement = await this.findReplacement(interaction.guildId!, attachment.contentType == "image/gif");
@@ -252,7 +252,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			(await guild.emojis.fetch()).filter(e => e.name).forEach(e => {
 				const index = emojis.findIndex(em => em.name == e.name);
 				if (index < 0) {
-					emojis.push({ id: e.id, name: e.name!, url: e.url, active: true, ref: false, animated: !!e.animated });
+					emojis.push({ id: e.id, name: e.name!, url: e.imageURL(), active: true, ref: false, animated: !!e.animated });
 					changed = true;
 				} else {
 					emojis[index].id = e.id;
@@ -293,7 +293,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	private async addEmoji(summatia: Summatia, guildId: Snowflake, emoji: GuildEmoji) {
 		if (!this.emojis.has(guildId)) this.emojis.set(guildId, new Map());
 		this.emojis.get(guildId)!.set(emoji.name!, { id: emoji.id, url: emoji.url, active: true, ref: false, animated: !!emoji.animated });
-		await summatia.database.providers.emoji.addEmoji(guildId, emoji.name!, { url: emoji.url, active: true, ref: false, animated: !!emoji.animated });
+		await summatia.database.providers.emoji.addEmoji(guildId, emoji.name!, { url: emoji.imageURL(), active: true, ref: false, animated: !!emoji.animated });
 	}
 
 	private async useEmoji(summatia: Summatia, guildId: Snowflake, name: string, id: Snowflake) {

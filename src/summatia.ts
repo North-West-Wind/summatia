@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./types/events";
 import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, DiscordReactionHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
@@ -109,8 +109,8 @@ export class Summatia {
 					await (command as SummatiaCommandModule).onDiscordCommandInteraction(this, interaction);
 				} catch (err) {
 					console.error(err);
-					if (interaction.replied || interaction.deferred) await interaction.followUp({ content: "It didn't work :(", ephemeral: true });
-					else await interaction.reply({ content: "It didn't work :(", ephemeral: true });
+					if (interaction.replied || interaction.deferred) await interaction.followUp({ content: "It didn't work :<", flags: MessageFlags.Ephemeral });
+					else await interaction.reply({ content: "It didn't work :<", flags: MessageFlags.Ephemeral });
 				}
 			}
 		});
