@@ -43,7 +43,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			.setName("add")
 			.setDescription("Upload an emoji to the server.")
 			.addAttachmentOption(new SlashCommandAttachmentOption().setName("image").setDescription("The image that will become an emoji.").setRequired(true))
-			.addStringOption(new SlashCommandStringOption().setName("name").setDescription("The name to use for this emoji.").setRequired(false)));
+			.addStringOption(new SlashCommandStringOption().setName("name").setDescription("The name to use for this emoji.").setRequired(true)));
 		data.addSubcommand(new SlashCommandSubcommandBuilder().setName("use").setDescription("Swap an emoji into use.")
 			.addBooleanOption(new SlashCommandBooleanOption().setName("animated").setDescription("Whether to modify animated emojis or not.").setRequired(false)));
 		data.addSubcommand(new SlashCommandSubcommandBuilder().setName("delete").setDescription("Delete an emoji from the server.")
@@ -98,11 +98,12 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				if (!interaction.memberPermissions?.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
 
 				const attachment = interaction.options.getAttachment("image", true);
-				const name = interaction.options.getString("name");
+				const name = interaction.options.getString("name", true).replace(/[^\w]/g, "_");
 				if (!attachment.contentType?.startsWith("image/")) return await interaction.reply("The attachment is not an image! -▵-'");
 				if (attachment.size >= 256 * 1024) return await interaction.reply("The image is too big! >▵<");
 
 				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
+				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.reply(`The name ${name} is already in use!`);
 				const replacement = await this.findReplacement(interaction.guildId!, attachment.contentType == "image/gif");
 				if (replacement === undefined) return await interaction.reply("Something just went VERY wrong ;▵;");
 				if (replacement) {
