@@ -89,12 +89,13 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 	async onDiscordCommandInteraction(summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		if (!interaction.guild) return await interaction.reply("I can only do this in servers!");
-		if (!(await interaction.guild.members.fetchMe()).permissions.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "I don't have permission to modify emojis!", flags: MessageFlags.Ephemeral });
+		const selfPerm = (await interaction.guild.members.fetchMe()).permissions;
+		if (!selfPerm.has(PermissionFlagsBits.ManageGuildExpressions) || !selfPerm.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "I don't have permission to modify emojis!", flags: MessageFlags.Ephemeral });
 		const subcommand = interaction.options.getSubcommand();
 
 		switch (subcommand) {
 			case "add": {
-				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
+				if (!interaction.memberPermissions?.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
 
 				const attachment = interaction.options.getAttachment("image", true);
 				const name = interaction.options.getString("name");
