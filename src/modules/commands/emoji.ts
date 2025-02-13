@@ -18,7 +18,9 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		this.emojis = new Map();
 	}
 
-	init(summatia: Summatia) {
+	async init(summatia: Summatia) {
+		for (const guildId of (await summatia.database.providers.emoji.getGuilds()) || [])
+			await this.setupGuild(summatia, await summatia.discord.guilds.fetch(guildId));
 		setInterval(async () => {
 			for (const [id, map] of this.emojis.entries())
 				await summatia.database.providers.emoji.updateEmojisRef(id, Array.from(map.entries()).map(([name, emoji]) => ({ name, ...emoji })));

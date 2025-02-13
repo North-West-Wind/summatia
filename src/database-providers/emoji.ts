@@ -15,6 +15,10 @@ export class EmojiDatabaseProvider extends SummatiaDatabaseProvider {
 		await this.createIfNotExist("guildEmojis", "guildId VARCHAR(32) NOT NULL, name VARCHAR(255) NOT NULL, url TEXT NOT NULL, active TINYINT(1) NOT NULL, ref TINYINT(1) NOT NULL, animated TINYINT(1) NOT NULL, PRIMARY KEY (guildId, name)");
 	}
 
+	async getGuilds() {
+		return (await this.all<{ guildId: string }>("SELECT DISTINCE guildId FROM guildEmojis"))?.map(x => x.guildId);
+	}
+
 	async getEmojis(guildId: Snowflake) {
 		const rows = await this.all<GuildEmoji>("SELECT * FROM guildEmojis WHERE guildId = ?", [guildId]);
 		return rows?.map(e => ({
