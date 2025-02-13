@@ -5,6 +5,8 @@ import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, Discord
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
+import express from "express";
+import { SummatiaRest } from "./rest";
 
 // Summatia handles both Matrix and Discord
 export class Summatia {
@@ -15,6 +17,7 @@ export class Summatia {
 	useDiscord: boolean;
 	modules: { -readonly [key in keyof typeof SummatiaListeners]: Map<string, SummatiaModule> };
 	database: SummatiaDatabase;
+	rest: SummatiaRest;
 	startTime: number;
 
 	constructor(prefix: string, useMatrix: boolean, useDiscord: boolean) {
@@ -58,6 +61,8 @@ export class Summatia {
 				Partials.Channel
 			]
 		});
+		
+		this.rest = new SummatiaRest();
 	}
 
 	matrixLog(...things: any[]) {
@@ -154,6 +159,8 @@ export class Summatia {
 			await (module as unknown as Initialized).init(this);
 		}
 
+		this.rest.setup();
+
 		console.log("Finished setup");
 	}
 
@@ -179,6 +186,8 @@ export class Summatia {
 			console.log(`Starting ${module.name}...`);
 			await (module as unknown as Startup).start(this);
 		}
+
+		this.rest.start();
 	}
 
 	async refreshDiscordCommands() {

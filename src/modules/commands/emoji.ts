@@ -137,21 +137,21 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			case "use": {
 				const animated = !!interaction.options.getBoolean("animated");
 				await interaction.deferReply();
-				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => !emoji.active && emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
+				const int = await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => !emoji.active && emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
 				const newEmoji = this.emojis.get(interaction.guildId!)?.get(name);
-				if (!newEmoji) return await int.update({ content: "You chose the emoji but also didn't. Maybe someone else updated it?", embeds: [], components: [], files: [] });
+				if (!newEmoji) return await int.update({ content: "You chose the emoji but also didn't. Maybe someone else updated it?", embeds: [], components: [] });
 
 				const att = await this.resizeEmoji(newEmoji.url, newEmoji.animated);
-				if (typeof att === "number") return await int.update({ content: "I used to be able to fit this in 256KB. Now I can't???", embeds: [], components: [], files: [] });
+				if (typeof att === "number") return await int.update({ content: "I used to be able to fit this in 256KB. Now I can't???", embeds: [], components: [] });
 
 				const replacement = await this.findReplacement(interaction.guildId!, newEmoji.animated);
-				if (replacement === undefined) return await int.update({ content: "Something just went VERY wrong ;▵;", embeds: [], components: [], files: [] });
+				if (replacement === undefined) return await int.update({ content: "Something just went VERY wrong ;▵;", embeds: [], components: [] });
 				if (replacement) {
 					if (!replacement.id) replacement.id = (await interaction.guild.emojis.fetch()).find(e => e.name == replacement.name)?.id;
 					if (!replacement.id) return await interaction.reply("Replacment is a bit off??");
-					await int.update({ content: `Replacing <:${replacement.name}:${replacement.id}>. Yoink!`, embeds: [], components: [], files: [] });
+					await int.update({ content: `Replacing <:${replacement.name}:${replacement.id}>. Yoink!`, embeds: [], components: [] });
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
 					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
@@ -161,7 +161,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					// no replacement needed!
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name: int.values[0] });
 					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
-					await int.update({ content: `Hello <:${emoji.name}:${emoji.id}>!`, embeds: [], components: [], files: [] });
+					await int.update({ content: `Hello <:${emoji.name}:${emoji.id}>!`, embeds: [], components: [] });
 				}
 				break;
 			}
@@ -169,26 +169,26 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
 				const animated = !!interaction.options.getBoolean("animated");
 				await interaction.deferReply();
-				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
+				const int = await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
 				const emoji = this.emojis.get(interaction.guildId!)?.get(name);
-				if (!emoji) return await int.update({ content: "You chose the emoji but also didn't. Maybe someone else updated it?", embeds: [], components: [], files: [] });
+				if (!emoji) return await int.update({ content: "You chose the emoji but also didn't. Maybe someone else updated it?", embeds: [], components: [] });
 				if (emoji.active && emoji.id) await interaction.guild.emojis.delete(emoji.id);
 				await this.deleteEmoji(summatia, interaction.guildId!, name);
-				await int.update({ content: `Poof! **${name}** is gone.`, embeds: [], components: [], files: [] });
+				await int.update({ content: `Poof! **${name}** is gone.`, embeds: [], components: [] });
 				break;
 			}
 			case "list": {
 				await interaction.deferReply();
-				await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)), false)
+				await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)), false)
 				break;
 			}
 			default: return await interaction.reply("WHAT!?");
 		}
 	}
 
-	private async emojiBrowser(interaction: ChatInputCommandInteraction, emojis: (EmojiCacheEntry & { name: string })[], selectable = true) {
+	private async emojiBrowser(summatia: Summatia, interaction: ChatInputCommandInteraction, emojis: (EmojiCacheEntry & { name: string })[], selectable = true) {
 		if (!emojis.length) {
 			await interaction.editReply("You don't have extra emojis. Good job :>");
 			return;
@@ -229,15 +229,15 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128, 128);
 			}
 			embed.setFields(fields);
-			const attachment = new AttachmentBuilder(canvas.data()).setName("emojis.png");
-			embed.setImage("attachment://emojis.png");
+			const uuid = summatia.rest.addTmpFile(canvas.data(), 60000);
+			embed.setImage(summatia.rest.fullPath(`/tmp/${uuid}`));
 			selectMenu.setOptions(options);
 
 			const row1 = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
 			let res: Message | InteractionResponse;
-			if (interaction.isChatInputCommand()) res = await interaction.editReply({ embeds: [embed], components: selectable ? [row1, row2] : [row2], files: [attachment] });
-			else res = await interaction.update({ embeds: [embed], components: selectable ? [row1, row2] : [row2], files: [attachment] });
+			if (interaction.isChatInputCommand()) res = await interaction.editReply({ embeds: [embed], components: selectable ? [row1, row2] : [row2] });
+			else res = await interaction.update({ embeds: [embed], components: selectable ? [row1, row2] : [row2] });
 			try {
 				const int = await res.awaitMessageComponent({ filter: int => int.user.id == interaction.user.id, time: 60000 });
 				if (int.componentType == ComponentType.Button) {
@@ -249,7 +249,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 							return await makeFields(int, newPage);
 						}
 						case buttonAttributes[2].id: {
-							await int.update({ content: "Cancelled :<", components: [], embeds: [], files: [] });
+							await int.update({ content: "Cancelled :<", components: [], embeds: [] });
 							return;
 						}
 						case buttonAttributes[3].id: {
@@ -263,8 +263,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					return int;
 				}
 			} catch (err) {
-				if (interaction.isChatInputCommand()) await interaction.editReply({ content: "Time's Up :>", components: [], embeds: [], files: [] });
-				else await interaction.update({ content: "Time's Up :>", components: [], embeds: [], files: [] });
+				if (interaction.isChatInputCommand()) await interaction.editReply({ content: "Time's Up :>", components: [], embeds: [] });
+				else await interaction.update({ content: "Time's Up :>", components: [], embeds: [] });
 			}
 		};
 		return await makeFields(interaction, 0);
