@@ -236,7 +236,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			const row1 = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
 			let res: Message | InteractionResponse;
-			if (interaction.isChatInputCommand()) res = await interaction.editReply({ embeds: [embed], components: [row1, row2], files: [attachment] });
+			if (interaction.isChatInputCommand()) res = await interaction.editReply({ embeds: [embed], components: selectable ? [row1, row2] : [row2], files: [attachment] });
 			else res = await interaction.update({ embeds: [embed], components: selectable ? [row1, row2] : [row2], files: [attachment] });
 			try {
 				const int = await res.awaitMessageComponent({ filter: int => int.user.id == interaction.user.id, time: 60000 });
