@@ -5,7 +5,6 @@ import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, Discord
 import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
-import express from "express";
 import { SummatiaRest } from "./rest";
 
 // Summatia handles both Matrix and Discord

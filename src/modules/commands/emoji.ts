@@ -361,9 +361,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (emoji) {
 			emoji.id = undefined;
 			emoji.active = false;
-			console.log(`Setting ${name} to unused`);
 			this.emojis.get(guildId)!.set(name, emoji);
-			console.log(`Checking ${JSON.stringify(this.emojis.get(guildId)!.get(name))}`);
 			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, false);
 		}
 	}
