@@ -128,7 +128,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
 					await this.addEmoji(summatia, interaction.guildId!, emoji);
-					await this.replaceEmoji(summatia, interaction.guildId!, replacement.name);
+					await this.unuseEmoji(summatia, interaction.guildId!, replacement.name);
 					await interaction.followUp(`Hello <:${emoji.name}:${emoji.id}>!`);
 				} else {
 					// no replacement needed!
@@ -158,7 +158,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
 					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
-					await this.replaceEmoji(summatia, interaction.guildId!, replacement.name);
+					await this.unuseEmoji(summatia, interaction.guildId!, replacement.name);
 					await interaction.followUp(`Hello <:${emoji.name}:${emoji.id}>!`);
 				} else {
 					// no replacement needed!
@@ -314,8 +314,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	private async saveGuildEmojis(summatia: Summatia, guildId: Snowflake) {
-		if (this.emojis.has(guildId))
-			await summatia.database.providers.emoji.setEmojis(guildId, Array.from(this.emojis.get(guildId)!.entries()).map(([name, emoji]) => ({ name, ...emoji })))
+		await summatia.database.providers.emoji.setEmojis(guildId, Array.from(this.emojis.get(guildId)?.entries() || []).map(([name, emoji]) => ({ name, ...emoji })))
 	}
 
 	// CLOCK algorithm replacement policy
@@ -347,8 +346,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	private async useEmoji(summatia: Summatia, guildId: Snowflake, name: string, id: Snowflake) {
-		if (!this.emojis.has(guildId)) return;
-		const emoji = this.emojis.get(guildId)!.get(name);
+		const emoji = this.emojis.get(guildId)?.get(name);
 		if (emoji) {
 			emoji.id = id;
 			emoji.active = true;
@@ -358,20 +356,20 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		}
 	}
 
-	private async replaceEmoji(summatia: Summatia, guildId: Snowflake, name: string) {
-		if (!this.emojis.has(guildId)) return;
-		const emoji = this.emojis.get(guildId)!.get(name);
+	private async unuseEmoji(summatia: Summatia, guildId: Snowflake, name: string) {
+		const emoji = this.emojis.get(guildId)?.get(name);
 		if (emoji) {
 			emoji.id = undefined;
 			emoji.active = false;
+			console.log(`Setting ${name} to unused`);
 			this.emojis.get(guildId)!.set(name, emoji);
+			console.log(`Checking ${this.emojis.get(guildId)!.get(name)}`);
 			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, false);
 		}
 	}
 
 	private async deleteEmoji(summatia: Summatia, guildId: Snowflake, name: string) {
-		if (!this.emojis.has(guildId)) return;
-		if (this.emojis.get(guildId)!.delete(name))
+		if (this.emojis.get(guildId)?.delete(name))
 			await summatia.database.providers.emoji.removeEmoji(guildId, name);
 	}
 
