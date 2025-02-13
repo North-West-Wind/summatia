@@ -226,7 +226,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				fields.push({ name: `${ii + 1}`, value, inline: true });
 				options.push(new StringSelectMenuOptionBuilder().setValue(emoji.name).setLabel(emoji.name));
 				const image = await loadImage(emoji.url);
-				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128, 128);
+				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128 * image.width / Math.max(image.width, image.height), 128 * image.height / Math.max(image.width, image.height));
 			}
 			embed.setFields(fields);
 			const uuid = summatia.rest.addTmpFile(await canvas.encode("png"), "image/png", 60000);
