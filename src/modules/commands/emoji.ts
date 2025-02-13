@@ -97,6 +97,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (!selfPerm.has(PermissionFlagsBits.ManageGuildExpressions) || !selfPerm.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "I don't have permission to modify emojis!", flags: MessageFlags.Ephemeral });
 		const subcommand = interaction.options.getSubcommand();
 
+		if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
+
 		switch (subcommand) {
 			case "add": {
 				if (!interaction.memberPermissions?.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
@@ -112,7 +114,6 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					return;
 				}
 
-				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.reply(`The name ${name} is already in use!`);
 				const replacement = await this.findReplacement(interaction.guildId!, attachment.contentType == "image/gif");
 				if (replacement === undefined) return await interaction.reply("Something just went VERY wrong ;▵;");
@@ -136,7 +137,6 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			case "use": {
 				const animated = !!interaction.options.getBoolean("animated");
 				await interaction.deferReply();
-				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => !emoji.active && emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
@@ -169,7 +169,6 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
 				const animated = !!interaction.options.getBoolean("animated");
 				await interaction.deferReply();
-				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 				const int = await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
@@ -203,7 +202,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			{ id: "last", emoji: "⏩", label: undefined },
 		];
 		
-		const embed = new EmbedBuilder().setColor(0x1ccbb7).setTitle("Emoji Browser").setFooter({ text: "Powered by Summatia", iconURL: "https://files.catbox.moe/5j84b7.png" });
+		const embed = new EmbedBuilder().setColor(0x1ccbb7).setFooter({ text: "Powered by Summatia", iconURL: "https://files.catbox.moe/5j84b7.png" });
 		const selectMenu = new StringSelectMenuBuilder().setCustomId("newUse").setPlaceholder("Choose an emoji to use!");
 		const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
 			...buttonAttributes.map(x => {
@@ -215,13 +214,16 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		);
 
 		const makeFields = async (interaction: ChatInputCommandInteraction | ButtonInteraction, page: number) => {
+			embed.setTitle(`Emoji Browser - Page ${page + 1}`);
 			const fields = [];
 			const options = [];
 			const canvas = createCanvas(128 * 3, 128 * 3);
 			const ctx = canvas.getContext("2d");
 			for (let ii = 0; ii < Math.min(9, emojis.length - page * 9); ii++) {
 				const emoji = emojis[ii + page * 9];
-				fields.push({ name: "\u200b", value: emoji.name, inline: true });
+				let value = emoji.name;
+				if (emoji.active && emoji.id) value += ` <:${emoji.name}:${emoji.id}>`;
+				fields.push({ name: `${ii + 1}`, value, inline: true });
 				options.push(new StringSelectMenuOptionBuilder().setValue(emoji.name).setLabel(emoji.name));
 				const image = await loadImage(emoji.url);
 				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128, 128);
@@ -245,6 +247,10 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 							let newPage = page - 1;
 							if (newPage < 0) newPage = Math.ceil(emojis.length / 9) - 1;
 							return await makeFields(int, newPage);
+						}
+						case buttonAttributes[2].id: {
+							await int.update({ content: "Cancelled :<", components: [], embeds: [], files: [] });
+							return;
 						}
 						case buttonAttributes[3].id: {
 							let newPage = page + 1;
