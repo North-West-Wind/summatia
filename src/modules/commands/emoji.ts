@@ -71,7 +71,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	async onEmojiCreate(summatia: Summatia, emoji: GuildEmoji) {
-		if (emoji.author?.id === summatia.discord.user.id) return;
+		if ((await emoji.fetchAuthor()).id === summatia.discord.user.id) return;
 		// manually modified emojis. re-sync
 		await this.setupGuild(summatia, emoji.guild);
 	}
@@ -363,7 +363,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			emoji.active = false;
 			console.log(`Setting ${name} to unused`);
 			this.emojis.get(guildId)!.set(name, emoji);
-			console.log(`Checking ${this.emojis.get(guildId)!.get(name)}`);
+			console.log(`Checking ${JSON.stringify(this.emojis.get(guildId)!.get(name))}`);
 			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, false);
 		}
 	}
