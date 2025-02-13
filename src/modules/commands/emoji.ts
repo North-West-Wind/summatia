@@ -38,9 +38,10 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 	examples(): string[] {
 		return [
-			"emoji add",
-			"emoji use",
-			"emoji delete"
+			"emoji add <image> [name]",
+			"emoji use [animated]",
+			"emoji delete [animated]",
+			"emoji list"
 		];
 	}
 
@@ -53,7 +54,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			.setName("add")
 			.setDescription("Upload an emoji to the server.")
 			.addAttachmentOption(new SlashCommandAttachmentOption().setName("image").setDescription("The image that will become an emoji.").setRequired(true))
-			.addStringOption(new SlashCommandStringOption().setName("name").setDescription("The name to use for this emoji.").setRequired(true)));
+			.addStringOption(new SlashCommandStringOption().setName("name").setDescription("The name to use for this emoji.").setRequired(false)));
 		data.addSubcommand(new SlashCommandSubcommandBuilder().setName("use").setDescription("Swap an emoji into use.")
 			.addBooleanOption(new SlashCommandBooleanOption().setName("animated").setDescription("Whether to modify animated emojis or not.").setRequired(false)));
 		data.addSubcommand(new SlashCommandSubcommandBuilder().setName("delete").setDescription("Delete an emoji from the server.")
@@ -65,11 +66,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 	onDiscordMessage(_summatia: Summatia, message: Message) {
 		if (!message.content || !message.guildId || !this.emojis.has(message.guildId)) return;
-		const map = this.emojis.get(message.guildId)!;
-		for (const [_, name] of message.content.matchAll(/<:(\w+):\d+>/g)) {
-			if (map.has(name))
-				map.get(name)!.ref = true;
-		}
+		for (const [_, name, id] of message.content.matchAll(/<:(\w+):(\d+)>/g))
+			this.referenceEmoji(message.guildId, name, id);
 	}
 
 	async onEmojiCreate(summatia: Summatia, emoji: GuildEmoji) {
@@ -90,10 +88,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	onMessageReactionAdd(_summatia: Summatia, reaction: MessageReaction | PartialMessageReaction) {
-		if (!reaction.message.guildId || !this.emojis.has(reaction.message.guildId)) return;
-		const map = this.emojis.get(reaction.message.guildId)!;
-		if (reaction.emoji.name && map.has(reaction.emoji.name))
-			map.get(reaction.emoji.name)!.ref = true;
+		if (!(reaction.emoji instanceof GuildEmoji) || !this.emojis.has(reaction.emoji.guild.id) || !reaction.emoji.name) return;
+		this.referenceEmoji(reaction.emoji.guild.id, reaction.emoji.name, reaction.emoji.id);
 	}
 
 	onMessageReactionRemove() { }
@@ -112,7 +108,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				if (!interaction.memberPermissions?.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
 
 				const attachment = interaction.options.getAttachment("image", true);
-				const name = interaction.options.getString("name", true).replace(/[^\w]/g, "_");
+				const name = (interaction.options.getString("name") || attachment.name.split(".").slice(0, -1).join(".")).replace(/[^\w]/g, "_");
 				if (!attachment.contentType?.startsWith("image/")) return await interaction.editReply("The attachment is not an image! -▵-'");
 				
 				const att = await this.resizeEmoji(attachment.url, attachment.contentType == "image/gif", { width: attachment.width || undefined, height: attachment.height || undefined, size: attachment.size });
@@ -122,7 +118,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					return;
 				}
 
-				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.editReply(`The name ${name} is already in use!`);
+				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.editReply(`The name **${name}** is already in use!`);
 				const replacement = await this.findReplacement(interaction.guildId!, attachment.contentType == "image/gif");
 				if (replacement === undefined) return await interaction.editReply("Something just went VERY wrong ;▵;");
 				if (replacement) {
@@ -357,16 +353,18 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			emoji.id = id;
 			emoji.active = true;
 			emoji.ref = true;
+			this.emojis.get(guildId)!.set(name, emoji);
 			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, true);
 		}
 	}
 
 	private async replaceEmoji(summatia: Summatia, guildId: Snowflake, name: string) {
 		if (!this.emojis.has(guildId)) return;
-		const oldCache = this.emojis.get(guildId)!.get(name);
-		if (oldCache) {
-			oldCache.id = undefined;
-			oldCache.active = false;
+		const emoji = this.emojis.get(guildId)!.get(name);
+		if (emoji) {
+			emoji.id = undefined;
+			emoji.active = false;
+			this.emojis.get(guildId)!.set(name, emoji);
 			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, false);
 		}
 	}
@@ -402,5 +400,13 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			} else return 0;
 		} else att = url;
 		return att;
+	}
+
+	private referenceEmoji(guildId: Snowflake, name: string, id: Snowflake) {
+		const emoji = this.emojis.get(guildId)?.get(name);
+		if (emoji?.id == id) {
+			emoji.ref = true;
+			this.emojis.get(guildId)?.set(name, emoji);
+		}
 	}
 }
