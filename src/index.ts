@@ -35,6 +35,6 @@ import { EmojiCommand } from "./modules/commands/emoji";
 	await summatia.refreshDiscordCommands();
 	await summatia.waitDatabase();
 	
-	summatia.setup();
-	summatia.start();
+	await summatia.setup();
+	await summatia.start();
 })();

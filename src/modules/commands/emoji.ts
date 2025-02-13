@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, ModalBuilder, SlashCommandAttachmentOption, SlashCommandStringOption, Guild, Snowflake, Message, GuildEmoji, EmbedBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, InteractionResponse, MessageReaction, MessageReactionEventDetails, PartialMessageReaction, PartialUser, User, SlashCommandBooleanOption, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { Summatia } from "../../summatia";
 import { SummatiaDiscordCommandHelpModule } from "../commands";
-import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialized, SummatiaListeners } from "..";
+import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialized, Startup, SummatiaListeners } from "..";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import fetch from "node-fetch";
 import sharp from "sharp";
@@ -10,21 +10,24 @@ import { imageMeta } from "image-meta";
 const REF_SAVE_INTERVAL = 30000;
 type EmojiCacheEntry = { id?: Snowflake, url: string, active: boolean, ref: boolean, animated: boolean };
 
-export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements DiscordHandler, DiscordEmojiHandler, DiscordReactionHandler, Initialized {
+export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements DiscordHandler, DiscordEmojiHandler, DiscordReactionHandler, Initialized, Startup {
 	emojis: Map<Snowflake, Map<string, EmojiCacheEntry>>;
 
 	constructor() {
-		super("emoji", { listen: [SummatiaListeners.INIT, SummatiaListeners.DISCORD_MESSAGE, SummatiaListeners.DISCORD_MESSAGE_REACTION, SummatiaListeners.DISCORD_GUILD_EMOJI] });
+		super("emoji", { listen: [SummatiaListeners.INIT, SummatiaListeners.START, SummatiaListeners.DISCORD_MESSAGE, SummatiaListeners.DISCORD_MESSAGE_REACTION, SummatiaListeners.DISCORD_GUILD_EMOJI] });
 		this.emojis = new Map();
 	}
 
 	async init(summatia: Summatia) {
-		for (const guildId of (await summatia.database.providers.emoji.getGuilds()) || [])
-			await this.setupGuild(summatia, await summatia.discord.guilds.fetch(guildId));
 		setInterval(async () => {
 			for (const [id, map] of this.emojis.entries())
 				await summatia.database.providers.emoji.updateEmojisRef(id, Array.from(map.entries()).map(([name, emoji]) => ({ name, ...emoji })));
 		}, REF_SAVE_INTERVAL);
+	}
+
+	async start(summatia: Summatia) {
+		for (const guildId of (await summatia.database.providers.emoji.getGuilds()) || [])
+			await this.setupGuild(summatia, await summatia.discord.guilds.fetch(guildId));
 	}
 
 	description() {

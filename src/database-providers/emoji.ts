@@ -16,7 +16,7 @@ export class EmojiDatabaseProvider extends SummatiaDatabaseProvider {
 	}
 
 	async getGuilds() {
-		return (await this.all<{ guildId: string }>("SELECT DISTINCE guildId FROM guildEmojis"))?.map(x => x.guildId);
+		return (await this.all<{ guildId: string }>("SELECT DISTINCT guildId FROM guildEmojis"))?.map(x => x.guildId);
 	}
 
 	async getEmojis(guildId: Snowflake) {
