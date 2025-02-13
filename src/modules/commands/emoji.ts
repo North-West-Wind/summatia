@@ -229,7 +229,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128, 128);
 			}
 			embed.setFields(fields);
-			const uuid = summatia.rest.addTmpFile(canvas.data(), 60000);
+			const uuid = summatia.rest.addTmpFile(canvas.encode("png"), "image/png", 60000);
 			embed.setImage(summatia.rest.fullPath(`/tmp/${uuid}`));
 			selectMenu.setOptions(options);
 

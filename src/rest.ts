@@ -8,7 +8,7 @@ const HOST = "https://smta.northwestw.in";
 
 export class SummatiaRest {
 	app: express.Express;
-	tmpFiles: Map<string, Buffer>;
+	tmpFiles: Map<string, { data: Buffer, type: string }>;
 
 	constructor() {
 		this.app = express();
@@ -19,7 +19,9 @@ export class SummatiaRest {
 		this.app.get("/tmp/:id", (req, res) => {
 			this.log("Received request for", req.params.id);
 			if (!this.tmpFiles.has(req.params.id)) return res.status(404);
-			res.send(this.tmpFiles.get(req.params.id));
+			const file = this.tmpFiles.get(req.params.id)!;
+			res.setHeader("Content-Type", file.type);
+			res.end(file.data);
 		});
 
 		this.log("Finished REST setup");
@@ -37,9 +39,9 @@ export class SummatiaRest {
 		console.log("[REST] " + message, ...args);
 	}
 
-	addTmpFile(buffer: Buffer, timeout: number) {
+	addTmpFile(data: Buffer, type: string, timeout: number) {
 		const uuid = randomUUID();
-		this.tmpFiles.set(uuid, buffer);
+		this.tmpFiles.set(uuid, { data, type });
 		this.log("Added tmp file", uuid);
 		setTimeout(() => this.tmpFiles.delete(uuid), timeout);
 		return uuid;
