@@ -102,6 +102,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (!selfPerm.has(PermissionFlagsBits.ManageGuildExpressions) || !selfPerm.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "I don't have permission to modify emojis!", flags: MessageFlags.Ephemeral });
 		const subcommand = interaction.options.getSubcommand();
 
+		await interaction.deferReply();
 		if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 
 		switch (subcommand) {
@@ -110,22 +111,22 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 				const attachment = interaction.options.getAttachment("image", true);
 				const name = interaction.options.getString("name", true).replace(/[^\w]/g, "_");
-				if (!attachment.contentType?.startsWith("image/")) return await interaction.reply("The attachment is not an image! -▵-'");
+				if (!attachment.contentType?.startsWith("image/")) return await interaction.editReply("The attachment is not an image! -▵-'");
 				
 				const att = await this.resizeEmoji(attachment.url, attachment.contentType == "image/gif", { width: attachment.width || undefined, height: attachment.height || undefined, size: attachment.size });
 				if (typeof att == "number") {
-					if (att == 0) await interaction.reply("The image file size (>256KB) is too big! >▵<");
-					else await interaction.reply("The image file size (>256KB) is too big even after resizing it! >▵<");
+					if (att == 0) await interaction.editReply("The image file size (>256KB) is too big! >▵<");
+					else await interaction.editReply("The image file size (>256KB) is too big even after resizing it! >▵<");
 					return;
 				}
 
-				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.reply(`The name ${name} is already in use!`);
+				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.editReply(`The name ${name} is already in use!`);
 				const replacement = await this.findReplacement(interaction.guildId!, attachment.contentType == "image/gif");
-				if (replacement === undefined) return await interaction.reply("Something just went VERY wrong ;▵;");
+				if (replacement === undefined) return await interaction.editReply("Something just went VERY wrong ;▵;");
 				if (replacement) {
 					if (!replacement.id) replacement.id = (await interaction.guild.emojis.fetch()).find(e => e.name == replacement.name)?.id;
-					if (!replacement.id) return await interaction.reply("Replacment is a bit off??");
-					await interaction.reply(`Replacing <:${replacement.name}:${replacement.id}>. Yoink!`);
+					if (!replacement.id) return await interaction.editReply("Replacment is a bit off??");
+					await interaction.editReply(`Replacing <:${replacement.name}:${replacement.id}>. Yoink!`);
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
 					await this.addEmoji(summatia, interaction.guildId!, emoji);
@@ -135,13 +136,12 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					// no replacement needed!
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
 					await this.addEmoji(summatia, interaction.guildId!, emoji);
-					await interaction.reply(`Hello <:${emoji.name}:${emoji.id}>!`);
+					await interaction.editReply(`Hello <:${emoji.name}:${emoji.id}>!`);
 				}
 				break;
 			}
 			case "use": {
 				const animated = !!interaction.options.getBoolean("animated");
-				await interaction.deferReply();
 				const int = await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => !emoji.active && emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
@@ -155,7 +155,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				if (replacement === undefined) return await int.update({ content: "Something just went VERY wrong ;▵;", embeds: [], components: [] });
 				if (replacement) {
 					if (!replacement.id) replacement.id = (await interaction.guild.emojis.fetch()).find(e => e.name == replacement.name)?.id;
-					if (!replacement.id) return await interaction.reply("Replacment is a bit off??");
+					if (!replacement.id) return await int.update({ content: "Replacment is a bit off??", embeds: [], components: [] });
 					await int.update({ content: `Replacing <:${replacement.name}:${replacement.id}>. Yoink!`, embeds: [], components: [] });
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
 					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
@@ -173,7 +173,6 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			case "delete": {
 				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
 				const animated = !!interaction.options.getBoolean("animated");
-				await interaction.deferReply();
 				const int = await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
 				const name = int.values[0];
@@ -189,7 +188,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)), false)
 				break;
 			}
-			default: return await interaction.reply("WHAT!?");
+			default: return await interaction.editReply("WHAT!?");
 		}
 	}
 
