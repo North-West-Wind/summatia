@@ -12,10 +12,12 @@ type EmojiCacheEntry = { id?: Snowflake, url: string, active: boolean, ref: bool
 
 export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements DiscordHandler, DiscordEmojiHandler, DiscordReactionHandler, Initialized, Startup {
 	emojis: Map<Snowflake, Map<string, EmojiCacheEntry>>;
+	clockPointer: Map<Snowflake, number>;
 
 	constructor() {
 		super("emoji", { listen: [SummatiaListeners.INIT, SummatiaListeners.START, SummatiaListeners.DISCORD_MESSAGE, SummatiaListeners.DISCORD_MESSAGE_REACTION, SummatiaListeners.DISCORD_GUILD_EMOJI] });
 		this.emojis = new Map();
+		this.clockPointer = new Map();
 	}
 
 	async init(summatia: Summatia) {
@@ -322,18 +324,25 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (!this.emojis.has(guildId)) return undefined;
 		const emojis = Array.from(this.emojis.get(guildId)!.entries()).filter(([_, e]) => e.active && e.animated == animated);
 		if (emojis.length < 50) return null;
-		for (const [name, emoji] of emojis) {
+		let startIndex = this.clockPointer.get(guildId) || 0;
+		while (startIndex >= emojis.length) startIndex -= emojis.length;
+		for (let ii = 0; ii < emojis.length; ii++) {
+			const [name, emoji] = emojis[startIndex];
 			if (emoji.ref) emoji.ref = false;
-			else return { name, ...emoji };
+			else {
+				this.clockPointer.set(guildId, startIndex);
+				return { name, ...emoji };
+			}
+			startIndex = (startIndex + 1) % emojis.length;
 		}
 		// All emojis had reference bit set. So the first one must not be.
-		return { name: emojis[0][0], ...emojis[0][1] };
+		return { name: emojis[startIndex][0], ...emojis[startIndex][1] };
 	}
 
 	private async addEmoji(summatia: Summatia, guildId: Snowflake, emoji: GuildEmoji) {
 		if (!this.emojis.has(guildId)) this.emojis.set(guildId, new Map());
-		this.emojis.get(guildId)!.set(emoji.name!, { id: emoji.id, url: emoji.imageURL(), active: true, ref: false, animated: !!emoji.animated });
-		await summatia.database.providers.emoji.addEmoji(guildId, emoji.name!, { url: emoji.imageURL(), active: true, ref: false, animated: !!emoji.animated });
+		this.emojis.get(guildId)!.set(emoji.name!, { id: emoji.id, url: emoji.imageURL(), active: true, ref: true, animated: !!emoji.animated });
+		await summatia.database.providers.emoji.addEmoji(guildId, emoji.name!, { url: emoji.imageURL(), active: true, ref: true, animated: !!emoji.animated });
 	}
 
 	private async useEmoji(summatia: Summatia, guildId: Snowflake, name: string, id: Snowflake) {
@@ -342,6 +351,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (emoji) {
 			emoji.id = id;
 			emoji.active = true;
+			emoji.ref = true;
 			await summatia.database.providers.emoji.updateEmojiActive(guildId, name, true);
 		}
 	}
