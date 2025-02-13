@@ -216,25 +216,30 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			})
 		);
 
+		const uuidCache = new Map<number, string>();
+
 		const makeFields = async (interaction: ChatInputCommandInteraction | ButtonInteraction, page: number) => {
 			if (!interaction.isChatInputCommand()) await interaction.deferUpdate();
 
 			embed.setTitle(`Emoji Browser - Page ${page + 1}`);
 			const fields = [];
 			const options = [];
+			let uuid = uuidCache.get(page);
 			const canvas = createCanvas(128 * 3, 128 * 3);
 			const ctx = canvas.getContext("2d");
 			for (let ii = 0; ii < Math.min(9, emojis.length - page * 9); ii++) {
 				const emoji = emojis[ii + page * 9];
 				let value = emoji.name;
-				if (emoji.active && emoji.id) value += ` <:${emoji.name}:${emoji.id}>`;
+				if (emoji.active && emoji.id && !emoji.animated) value += ` <:${emoji.name}:${emoji.id}>`;
 				fields.push({ name: `${ii + 1} ${emoji.animated ? "(a)" : ""}`, value, inline: true });
 				options.push(new StringSelectMenuOptionBuilder().setValue(emoji.name).setLabel(emoji.name));
-				const image = await loadImage(emoji.url);
-				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128 * image.width / Math.max(image.width, image.height), 128 * image.height / Math.max(image.width, image.height));
+				if (!uuid) {
+					const image = await loadImage(emoji.url);
+					ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128 * image.width / Math.max(image.width, image.height), 128 * image.height / Math.max(image.width, image.height));
+				}
 			}
 			embed.setFields(fields);
-			const uuid = summatia.rest.addTmpFile(await canvas.encode("png"), "image/png", 60000);
+			if (!uuid) uuid = summatia.rest.addTmpFile(await canvas.encode("png"), "image/png", 60000);
 			embed.setImage(summatia.rest.fullPath(`/tmp/${uuid}`));
 			selectMenu.setOptions(options);
 
