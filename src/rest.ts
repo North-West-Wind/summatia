@@ -17,6 +17,7 @@ export class SummatiaRest {
 
 	setup() {
 		this.app.get("/tmp/:id", (req, res) => {
+			this.log("Received request for", req.params.id);
 			if (!this.tmpFiles.has(req.params.id)) return res.status(404);
 			res.send(this.tmpFiles.get(req.params.id));
 		});
@@ -39,6 +40,7 @@ export class SummatiaRest {
 	addTmpFile(buffer: Buffer, timeout: number) {
 		const uuid = randomUUID();
 		this.tmpFiles.set(uuid, buffer);
+		this.log("Added tmp file", uuid);
 		setTimeout(() => this.tmpFiles.delete(uuid), timeout);
 		return uuid;
 	}
