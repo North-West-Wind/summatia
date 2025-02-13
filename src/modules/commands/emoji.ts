@@ -5,6 +5,7 @@ import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialize
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import fetch from "node-fetch";
 import sharp from "sharp";
+import { imageMeta } from "image-meta";
 
 const REF_SAVE_INTERVAL = 30000;
 type EmojiCacheEntry = { id?: Snowflake, url: string, active: boolean, ref: boolean, animated: boolean };
@@ -103,20 +104,13 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				const attachment = interaction.options.getAttachment("image", true);
 				const name = interaction.options.getString("name", true).replace(/[^\w]/g, "_");
 				if (!attachment.contentType?.startsWith("image/")) return await interaction.reply("The attachment is not an image! -▵-'");
-				let att: string | Buffer;
-				if (attachment.size >= 256 * 1024) {
-					// try resizing to 128x128 if too large
-					if (Math.min(attachment.width || 0, attachment.height || 0) > 128) {
-						const w = 128 * attachment.width! / Math.min(attachment.width!, attachment.height!);
-						const h = 128 * attachment.height! / Math.min(attachment.width!, attachment.height!);
-						const res = await fetch(attachment.url);
-						const resized = sharp(await res.buffer()).resize(w, h);
-						if (attachment.contentType == "image/gif") att = await resized.gif().toBuffer();
-						else att = await resized.png().toBuffer();
-						if (att.byteLength >= 256 * 1024)
-							return await interaction.reply("The image file size (>256KB) is too big even after resizing it! >▵<");
-					} else return await interaction.reply("The image file size (>256KB) is too big! >▵<");
-				} else att = attachment.url;
+				
+				const att = await this.resizeEmoji(attachment.url, attachment.contentType == "image/gif", { width: attachment.width || undefined, height: attachment.height || undefined, size: attachment.size });
+				if (typeof att == "number") {
+					if (att == 0) await interaction.reply("The image file size (>256KB) is too big! >▵<");
+					else await interaction.reply("The image file size (>256KB) is too big even after resizing it! >▵<");
+					return;
+				}
 
 				if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.reply(`The name ${name} is already in use!`);
@@ -148,6 +142,10 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				const name = int.values[0];
 				const newEmoji = this.emojis.get(interaction.guildId!)?.get(name);
 				if (!newEmoji) return await int.update({ content: "You chose the emoji but also didn't. Maybe someone else updated it?", embeds: [], components: [], files: [] });
+
+				const att = await this.resizeEmoji(newEmoji.url, newEmoji.animated);
+				if (typeof att === "number") return await int.update({ content: "I used to be able to fit this in 256KB. Now I can't???", embeds: [], components: [], files: [] });
+
 				const replacement = await this.findReplacement(interaction.guildId!, newEmoji.animated);
 				if (replacement === undefined) return await int.update({ content: "Something just went VERY wrong ;▵;", embeds: [], components: [], files: [] });
 				if (replacement) {
@@ -155,13 +153,13 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					if (!replacement.id) return await interaction.reply("Replacment is a bit off??");
 					await int.update({ content: `Replacing <:${replacement.name}:${replacement.id}>. Yoink!`, embeds: [], components: [], files: [] });
 					await interaction.guild.emojis.delete(replacement.id, "Summatia hot swap :>");
-					const emoji = await interaction.guild.emojis.create({ attachment: newEmoji.url, name });
+					const emoji = await interaction.guild.emojis.create({ attachment: att, name });
 					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
 					await this.replaceEmoji(summatia, interaction.guildId!, replacement.name);
 					await interaction.followUp(`Hello <:${emoji.name}:${emoji.id}>!`);
 				} else {
 					// no replacement needed!
-					const emoji = await interaction.guild.emojis.create({ attachment: newEmoji.url, name: int.values[0] });
+					const emoji = await interaction.guild.emojis.create({ attachment: att, name: int.values[0] });
 					await this.useEmoji(summatia, interaction.guildId!, name, emoji.id);
 					await int.update({ content: `Hello <:${emoji.name}:${emoji.id}>!`, embeds: [], components: [], files: [] });
 				}
@@ -183,6 +181,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				break;
 			}
 			case "list": {
+				await interaction.deferReply();
 				await this.emojiBrowser(interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)), false)
 				break;
 			}
@@ -223,7 +222,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 			for (let ii = 0; ii < Math.min(9, emojis.length - page * 9); ii++) {
 				const emoji = emojis[ii + page * 9];
 				fields.push({ name: "\u200b", value: emoji.name, inline: true });
-				options.push(new StringSelectMenuOptionBuilder().setValue(emoji.name));
+				options.push(new StringSelectMenuOptionBuilder().setValue(emoji.name).setLabel(emoji.name));
 				const image = await loadImage(emoji.url);
 				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128, 128);
 			}
@@ -268,7 +267,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	private async setupGuild(summatia: Summatia, guild: Guild) {
 		const emojis: (EmojiCacheEntry & { name: string })[] | undefined = (await summatia.database.providers.emoji.getEmojis(guild.id))?.map(e => ({ name: e.name, url: e.url, active: e.active, ref: e.ref, animated: e.animated }));
 		if (!emojis) {
-			this.emojis.set(guild.id, new Map((await guild.emojis.fetch()).filter(e => e.name).map(e => [e.name!, { url: e.url, active: true, ref: false, animated: !!e.animated }])));
+			this.emojis.set(guild.id, new Map((await guild.emojis.fetch()).filter(e => e.name).map(e => [e.name!, { url: e.imageURL(), active: true, ref: false, animated: !!e.animated }])));
 			summatia.discordLog(`Setup guild emojis for ${guild.name}`);
 		} else {
 			let changed = false;
@@ -279,8 +278,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					changed = true;
 				} else {
 					emojis[index].id = e.id;
-					if (emojis[index].url != e.url) {
-						emojis[index].url = e.url;
+					if (emojis[index].url != e.imageURL()) {
+						emojis[index].url = e.imageURL();
 						changed = true;
 					}
 				}
@@ -319,7 +318,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 	private async addEmoji(summatia: Summatia, guildId: Snowflake, emoji: GuildEmoji) {
 		if (!this.emojis.has(guildId)) this.emojis.set(guildId, new Map());
-		this.emojis.get(guildId)!.set(emoji.name!, { id: emoji.id, url: emoji.url, active: true, ref: false, animated: !!emoji.animated });
+		this.emojis.get(guildId)!.set(emoji.name!, { id: emoji.id, url: emoji.imageURL(), active: true, ref: false, animated: !!emoji.animated });
 		await summatia.database.providers.emoji.addEmoji(guildId, emoji.name!, { url: emoji.imageURL(), active: true, ref: false, animated: !!emoji.animated });
 	}
 
@@ -347,5 +346,32 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (!this.emojis.has(guildId)) return;
 		if (this.emojis.get(guildId)!.delete(name))
 			await summatia.database.providers.emoji.removeEmoji(guildId, name);
+	}
+
+	private async resizeEmoji(url: string, animated: boolean, info?: { width?: number, height?: number, size: number }) {
+		let att: string | Buffer;
+		let tmp: Buffer | undefined;
+		if (!info) {
+			const res = await fetch(url);
+			tmp = await res.buffer();
+			const meta = imageMeta(tmp);
+			info = { width: meta.width, height: meta.height, size: tmp.byteLength };
+		}
+		if (info.size >= 256 * 1024) {
+			// try resizing to 128x128 if too large
+			if (Math.min(info.width || 0, info.height || 0) > 128) {
+				const w = 128 * info.width! / Math.min(info.width!, info.height!);
+				const h = 128 * info.height! / Math.min(info.width!, info.height!);
+				if (!tmp) {
+					const res = await fetch(url);
+					tmp = await res.buffer();
+				}
+				const resized = sharp(tmp).resize(w, h);
+				if (animated) att = await resized.gif().toBuffer();
+				else att = await resized.png().toBuffer();
+				if (att.byteLength >= 256 * 1024) return 1;
+			} else return 0;
+		} else att = url;
+		return att;
 	}
 }
