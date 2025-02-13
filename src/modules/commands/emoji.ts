@@ -184,7 +184,6 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				break;
 			}
 			case "list": {
-				await interaction.deferReply();
 				await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)), false)
 				break;
 			}
