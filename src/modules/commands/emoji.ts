@@ -268,6 +268,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					return int;
 				}
 			} catch (err) {
+				console.error(err);
 				if (interaction.isChatInputCommand()) await interaction.editReply({ content: "Time's Up :>", components: [], embeds: [] });
 				else await interaction.update({ content: "Time's Up :>", components: [], embeds: [] });
 			}
