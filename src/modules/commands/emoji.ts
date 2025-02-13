@@ -217,6 +217,8 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		);
 
 		const makeFields = async (interaction: ChatInputCommandInteraction | ButtonInteraction, page: number) => {
+			if (!interaction.isChatInputCommand()) await interaction.deferUpdate();
+
 			embed.setTitle(`Emoji Browser - Page ${page + 1}`);
 			const fields = [];
 			const options = [];
