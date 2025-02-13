@@ -281,7 +281,10 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	private async setupGuild(summatia: Summatia, guild: Guild) {
-		const emojis: (EmojiCacheEntry & { name: string })[] | undefined = (await summatia.database.providers.emoji.getEmojis(guild.id))?.map(e => ({ name: e.name, url: e.url, active: e.active, ref: e.ref, animated: e.animated }));
+		const emojis: (EmojiCacheEntry & { name: string })[] | undefined =
+			this.emojis.has(guild.id) ?
+			Array.from(this.emojis.get(guild.id)!.entries()).map(([name, emoji]) => ({ name, ...emoji })) :
+		 	(await summatia.database.providers.emoji.getEmojis(guild.id))?.map(e => ({ name: e.name, url: e.url, active: e.active, ref: e.ref, animated: e.animated }));
 		if (!emojis) {
 			this.emojis.set(guild.id, new Map((await guild.emojis.fetch()).filter(e => e.name).map(e => [e.name!, { url: e.imageURL(), active: true, ref: false, animated: !!e.animated }])));
 			summatia.discordLog(`Setup guild emojis for ${guild.name}`);
@@ -322,21 +325,23 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	// CLOCK algorithm replacement policy
 	private async findReplacement(guildId: Snowflake, animated: boolean) {
 		if (!this.emojis.has(guildId)) return undefined;
-		const emojis = Array.from(this.emojis.get(guildId)!.entries()).filter(([_, e]) => e.active && e.animated == animated);
+		const map = this.emojis.get(guildId)!;
+		const emojis = Array.from(map.entries()).filter(([_, e]) => e.active && e.animated == animated).sort((a, b) => a[0].localeCompare(b[0]));
 		if (emojis.length < 50) return null;
-		let startIndex = this.clockPointer.get(guildId) || 0;
-		while (startIndex >= emojis.length) startIndex -= emojis.length;
+		let index = (this.clockPointer.get(guildId) || 0) % emojis.length;
 		for (let ii = 0; ii < emojis.length; ii++) {
-			const [name, emoji] = emojis[startIndex];
-			if (emoji.ref) emoji.ref = false;
-			else {
-				this.clockPointer.set(guildId, startIndex);
+			const [name, emoji] = emojis[index];
+			if (emoji.ref) {
+				emoji.ref = false;
+				map.set(name, emoji);
+			} else {
+				this.clockPointer.set(guildId, index);
 				return { name, ...emoji };
 			}
-			startIndex = (startIndex + 1) % emojis.length;
+			index = (index + 1) % emojis.length;
 		}
 		// All emojis had reference bit set. So the first one must not be.
-		return { name: emojis[startIndex][0], ...emojis[startIndex][1] };
+		return { name: emojis[index][0], ...emojis[index][1] };
 	}
 
 	private async addEmoji(summatia: Summatia, guildId: Snowflake, emoji: GuildEmoji) {
