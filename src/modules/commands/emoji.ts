@@ -228,7 +228,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				const emoji = emojis[ii + page * 9];
 				let value = emoji.name;
 				if (emoji.active && emoji.id) value += ` <:${emoji.name}:${emoji.id}>`;
-				fields.push({ name: `${ii + 1}`, value, inline: true });
+				fields.push({ name: `${ii + 1} ${emoji.animated ? "(a)" : ""}`, value, inline: true });
 				options.push(new StringSelectMenuOptionBuilder().setValue(emoji.name).setLabel(emoji.name));
 				const image = await loadImage(emoji.url);
 				ctx.drawImage(image, (ii % 3) * 128, Math.floor(ii / 3) * 128, 128 * image.width / Math.max(image.width, image.height), 128 * image.height / Math.max(image.width, image.height));
@@ -240,9 +240,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 
 			const row1 = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
-			let res: Message | InteractionResponse;
-			if (interaction.isChatInputCommand()) res = await interaction.editReply({ embeds: [embed], components: selectable ? [row1, row2] : [row2] });
-			else res = await interaction.update({ embeds: [embed], components: selectable ? [row1, row2] : [row2] });
+			const res = await interaction.editReply({ embeds: [embed], components: selectable ? [row1, row2] : [row2] });
 			try {
 				const int = await res.awaitMessageComponent({ filter: int => int.user.id == interaction.user.id, time: 60000 });
 				if (int.componentType == ComponentType.Button) {
@@ -268,7 +266,6 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 					return int;
 				}
 			} catch (err) {
-				console.error(err);
 				if (interaction.isChatInputCommand()) await interaction.editReply({ content: "Time's Up :>", components: [], embeds: [] });
 				else await interaction.update({ content: "Time's Up :>", components: [], embeds: [] });
 			}
