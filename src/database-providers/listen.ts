@@ -1,9 +1,20 @@
 import { Snowflake } from "discord.js";
 import { SummatiaDatabaseProvider } from "./provider";
+import { Database } from "sqlite3";
 
 export class ListenDatabaseProvider extends SummatiaDatabaseProvider {
-	async init() {
-		await this.createIfNotExist("listen", "channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL");
+	constructor(db: Database) {
+		super("listen", db);
+	}
+
+	tables() {
+		return ["listen"];
+	}
+	
+	protected migrations() {
+		return [
+			async () => await this.createIfNotExist("listen", "channel varchar(32) NOT NULL PRIMARY KEY, chance INTEGER NOT NULL")
+		];
 	}
 
 	addListen(channel: Snowflake, chance: number) {

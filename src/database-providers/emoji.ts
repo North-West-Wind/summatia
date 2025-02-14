@@ -1,5 +1,6 @@
 import { Snowflake } from "discord.js";
 import { SummatiaDatabaseProvider } from "./provider";
+import { Database } from "sqlite3";
 
 type GuildEmoji = {
 	guildId: Snowflake;
@@ -11,8 +12,18 @@ type GuildEmoji = {
 }
 
 export class EmojiDatabaseProvider extends SummatiaDatabaseProvider {
-	async init() {
-		await this.createIfNotExist("guildEmojis", "guildId VARCHAR(32) NOT NULL, name VARCHAR(255) NOT NULL, url TEXT NOT NULL, active TINYINT(1) NOT NULL, ref TINYINT(1) NOT NULL, animated TINYINT(1) NOT NULL, PRIMARY KEY (guildId, name)");
+	constructor(db: Database) {
+		super("emoji", db);
+	}
+
+	tables() {
+		return ["guildEmojis"];
+	}
+
+	protected migrations() {
+		return [
+			async () => this.createIfNotExist("guildEmojis", "guildId VARCHAR(32) NOT NULL, name VARCHAR(255) NOT NULL, url TEXT NOT NULL, active TINYINT(1) NOT NULL, ref TINYINT(1) NOT NULL, animated TINYINT(1) NOT NULL, PRIMARY KEY (guildId, name)")
+		];
 	}
 
 	async getGuilds() {

@@ -1,11 +1,24 @@
 import { Snowflake } from "discord.js";
 import { SummatiaDatabaseProvider } from "./provider";
+import { Database } from "sqlite3";
 
 export class RssDatabaseProvider extends SummatiaDatabaseProvider {
-	async init() {
-		await this.createIfNotExist("rss", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, url VARCHAR(2083) NOT NULL, timestamp INTEGER");
-		await this.createIfNotExist("rssDiscord", "channel VARCHAR(32) NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss)");
-		await this.createIfNotExist("rssMatrix", "room TEXT NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(room, rss)");
+	constructor(db: Database) {
+		super("rss", db);
+	}
+
+	tables() {
+		return ["rss", "rssDiscord", "rssMatrix"];
+	}
+
+	protected migrations() {
+		return [
+			async () => {
+				await this.createIfNotExist("rss", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, url VARCHAR(2083) NOT NULL, timestamp INTEGER");
+				await this.createIfNotExist("rssDiscord", "channel VARCHAR(32) NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(channel, rss)");
+				await this.createIfNotExist("rssMatrix", "room TEXT NOT NULL, rss INTEGER NOT NULL, template TEXT, PRIMARY KEY(room, rss)");
+			}
+		];
 	}
 
 	getRssFeedId(url: string) {

@@ -6,12 +6,20 @@ export class BridgeDatabaseProvider extends SummatiaDatabaseProvider {
 	mautrixDb?: Database;
 
 	constructor(db: Database) {
-		super(db);
+		super("bridge", db);
 
 		if (process.env.MAUTRIX_DATABASE) {
 			const sqlite3 = verbose();
 			this.mautrixDb = new sqlite3.Database(process.env.MAUTRIX_DATABASE, sqlite3.OPEN_READONLY);
 		}
+	}
+
+	tables() {
+		return [];
+	}
+
+	protected migrations() {
+		return [() => {}];
 	}
 
 	getChannelRoom(channelId: Snowflake) {

@@ -6,6 +6,7 @@ import { BridgeDatabaseProvider } from "./database-providers/bridge";
 import { RssDatabaseProvider } from "./database-providers/rss";
 import { Splatoon3DatabaseProvider } from "./database-providers/splatoon3";
 import { EmojiDatabaseProvider } from "./database-providers/emoji";
+import { SummatiaDatabaseProvider } from "./database-providers/provider";
 
 export class SummatiaDatabase {
 	private db: Database;
@@ -37,8 +38,13 @@ export class SummatiaDatabase {
 
 	async init() {
 		try {
-			for (const provider of Object.values(this.providers))
-				await provider.init();
+			await this.ensureMigrateVersionTable();
+			for (const provider of Object.values(this.providers)) {
+				const [version, create] = await this.getProviderVersion(provider);
+				await provider.migrate(version);
+				if (version != provider.version)
+					await this.setProviderVersion(provider, create);
+			}
 			this.ready = true;
 		} catch (err) {
 			console.log("Failed to initialize database");
@@ -48,5 +54,46 @@ export class SummatiaDatabase {
 
 	isReady() {
 		return this.ready;
+	}
+
+	private getProviderVersion(provider: SummatiaDatabaseProvider) {
+		return new Promise<[number | undefined, boolean]>((res, rej) => {
+			this.db.get("SELECT version FROM migrate_version WHERE name = ?", [provider.name], (err, row?: { version: number }) => {
+				if (err) rej(err);
+				else if (row?.version || !provider.tables()) res([row?.version, !row]);
+				else {
+					this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [provider.tables()[0]], (err, row) => {
+						if (err) rej(err);
+						if (row) res([0, true]);
+						else res([undefined, true]);
+					});
+				}
+			});
+		});
+	}
+
+	private setProviderVersion(provider: SummatiaDatabaseProvider, create: boolean) {
+		return new Promise<void>((res, rej) => {
+			const query: [string, any[]] = create ?
+				["INSERT INTO migrate_version VALUES (?, ?)", [provider.name, provider.version]] : 
+				["UPDATE migrate_version SET version = ? WHERE name = ?", [provider.version, provider.name]];
+			this.db.run(query[0], query[1], (err) => {
+				if (err) rej(err);
+				else res();
+			});
+		});
+	}
+
+	private ensureMigrateVersionTable() {
+		return new Promise<void>((res, rej) => {
+			this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", ["migrate_version"], (err, row) => {
+				if (err) rej(err);
+				else
+					this.db.run("CREATE TABLE migrate_version (name VARCHAR(32) NOT NULL PRIMARY KEY, version INTEGER NOT NULL)", (err) => {
+						if (err) rej(err);
+						else res();
+					});
+			});
+		})
 	}
 }

@@ -1,13 +1,28 @@
 import { Database } from "sqlite3";
 
-export class SummatiaDatabaseProvider {
+export abstract class SummatiaDatabaseProvider {
+	readonly name: string;
 	protected db: Database;
+	readonly version: number;
 
-	constructor(db: Database) {
+	constructor(name: string, db: Database, version = 0) {
+		this.name = name;
 		this.db = db;
+		this.version = version;
 	}
 
-	async init() {}
+	// returned array structure: [none -> this.version, 0 -> 1, 1 -> 2]
+	protected abstract migrations(): (() => any | Promise<any>)[];
+
+	abstract tables(): string[];
+
+	async migrate(currentVersion?: number) {
+		if (currentVersion === undefined)
+			await this.migrations()[0]();
+		else
+			while (currentVersion < this.version)
+				await this.migrations()[++currentVersion]();
+	}
 
 	protected async createIfNotExist(name: string, innerQuery: string) {
 		const row = await this.get<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [name]);

@@ -1,3 +1,4 @@
+import { Database } from "sqlite3";
 import { SummatiaDatabaseProvider } from "./provider";
 
 export class BitflagManipulator {
@@ -20,9 +21,21 @@ export class BitflagManipulator {
 }
 
 export class Splatoon3DatabaseProvider extends SummatiaDatabaseProvider {
-	async init() {
-		await this.createIfNotExist("s3subs", "id TEXT NOT NULL PRIMARY KEY, bitflag INTEGER NOT NULL");
-		await this.createIfNotExist("s3past", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, s3id VARCHAR(32) NOT NULL");
+	constructor(db: Database) {
+		super("splatoon3", db);
+	}
+
+	tables() {
+		return ["s3subs", "s3past"];
+	}
+
+	protected migrations(): (() => any | Promise<any>)[] {
+		return [
+			async () => {
+				await this.createIfNotExist("s3subs", "id TEXT NOT NULL PRIMARY KEY, bitflag INTEGER NOT NULL");
+				await this.createIfNotExist("s3past", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, s3id VARCHAR(32) NOT NULL");
+			}
+		];
 	}
 
 	async setSubscriptions(id: string, manipulator: BitflagManipulator) {

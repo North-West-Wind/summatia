@@ -1,9 +1,20 @@
 import { Snowflake } from "discord.js";
 import { SummatiaDatabaseProvider } from "./provider";
+import { Database } from "sqlite3";
 
 export class LinkDatabaseProvider extends SummatiaDatabaseProvider {
-	async init() {
-		await this.createIfNotExist("linkSpam", "user varchar(32) NOT NULL, guild varchar(32) NOT NULL, threat INTEGER NOT NULL, PRIMARY KEY(user, guild)");
+	constructor(db: Database) {
+		super("link", db);
+	}
+
+	tables() {
+		return ["linkSpam"];
+	}
+
+	protected migrations() {
+		return [
+			async () => await this.createIfNotExist("linkSpam", "user varchar(32) NOT NULL, guild varchar(32) NOT NULL, threat INTEGER NOT NULL, PRIMARY KEY(user, guild)")
+		];
 	}
 
 	getLinkSpamUsers() {
