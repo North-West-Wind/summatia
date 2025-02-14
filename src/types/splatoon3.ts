@@ -1,4 +1,4 @@
-import { SalmonRunWeapon, SalmonSchedule, SplatStage } from "splatoon3api/dist/types";
+import { SalmonRunWeapon, SplatStage } from "splatoon3api/dist/types";
 
 export type FestRecord = {
 	__splatoon3ink_id: string;

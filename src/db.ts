@@ -88,7 +88,7 @@ export class SummatiaDatabase {
 		return new Promise<void>((res, rej) => {
 			this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", ["migrate_version"], (err, row) => {
 				if (err) rej(err);
-				else
+				else if (!row)
 					this.db.run("CREATE TABLE migrate_version (name VARCHAR(32) NOT NULL PRIMARY KEY, version INTEGER NOT NULL)", (err) => {
 						if (err) rej(err);
 						else res();

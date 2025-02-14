@@ -3,7 +3,6 @@ import { Helpful, MatrixHandler, SummatiaListeners } from "..";
 import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
-import MarkdownIt from "markdown-it";
 import { renderMarkdown } from "../../helpers/strings";
 
 export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHandler {

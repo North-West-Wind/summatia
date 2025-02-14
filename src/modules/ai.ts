@@ -18,9 +18,9 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 		let body = event.content.body;
 	
 		const states = await summatia.matrix.getRoomState(roomId);
-		let name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
+		const name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
 		// get the number of members in the room
-		let members = (states.map(state => {
+		const members = (states.map(state => {
 			if (state.type != "m.room.member") return 0;
 			if (state.content.membership == "join") return 1;
 			if (state.content.membership == "leave") return -1;
@@ -35,8 +35,8 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 			try {
 				replyToMe = (await summatia.matrix.getEvent(roomId, replyEventId))?.sender === selfId;
 				// separate reply and new message
-				let previous: string[] = [];
-				let newBody: string[] = [];
+				const previous: string[] = [];
+				const newBody: string[] = [];
 				let seenNonReply = false;
 				for (const line of body.split("\n")) {
 					if (seenNonReply || !line.startsWith("> ")) {
@@ -72,7 +72,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 						if (profile) body = body.replace(new RegExp(match.replace(/\./, "\\."), "g"), "@" + profile.displayname);
 					} catch (err) { }
 				}
-			let res = await this.chat((await summatia.matrix.getUserProfile(event.sender)).displayname, platform, { message: body, reply }, Date.now() - event.origin_server_ts > 60000);
+			const res = await this.chat((await summatia.matrix.getUserProfile(event.sender)).displayname, platform, { message: body, reply }, Date.now() - event.origin_server_ts > 60000);
 			if (typeof res === "string") await summatia.matrix.replyText(roomId, event, res);
 			summatia.matrix.setTyping(roomId, false).catch(() => {}); // nobody cares if you can't set typing
 		}
@@ -109,7 +109,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 	}
 
 	private async chat(name: string, platform: string, content: ({ message: string, images?: string[] } | { message?: string, images: string[] }) & { reply?: string }, noResponse: boolean) {
-		let sendObj: { name: string, platform: string, noResponse: boolean, message?: string, reply?: string, images?: string[] } = {
+		const sendObj: { name: string, platform: string, noResponse: boolean, message?: string, reply?: string, images?: string[] } = {
 			name,
 			platform,
 			noResponse

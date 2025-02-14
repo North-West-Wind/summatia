@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { SummatiaCommandHelpModule, SummatiaCommandModule } from "../commands";
+import { SummatiaCommandHelpModule } from "../commands";
 import { Summatia } from "../../summatia";
 import { RoomMessageEvent } from "../../types/events";
 import { SummatiaListeners } from "..";

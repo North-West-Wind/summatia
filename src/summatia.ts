@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, Partials, PresenceData, PresenceStatusData, REST, Routes, Snowflake } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, Partials, PresenceData, PresenceStatusData, Routes, Snowflake } from "discord.js";
 import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { RoomMessageEvent } from "./types/events";
 import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, DiscordReactionHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
@@ -218,7 +218,7 @@ export class Summatia {
 	}
 
 	setDiscordPresence(status: PresenceStatusData) {
-		let data: PresenceData = { status };
+		const data: PresenceData = { status };
 		if (status == "online") data.activities = [{ name: "Integrelle", type: ActivityType.Playing }];
 		this.discord.user.setPresence(data);
 		this.discordLog(`${this.discord.user.tag} is ${status}`);
@@ -228,7 +228,7 @@ export class Summatia {
 		if (!this.useMatrix) return [];
 		const states = await this.matrix.getRoomState(roomId);
 		let names: string[] = [];
-		let name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
+		const name = states.filter(state => state.type == "m.room.name").pop()?.content.name || "";
 		const parentState = states.filter(state => state.type == "m.space.parent").pop();
 		if (parentState) names = await this.getRoomParents(parentState.state_key);
 		names.unshift(name);

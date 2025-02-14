@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import express from "express";
-import fetch from "node-fetch";
 import { AddressInfo } from "net";
 
 const PORT = 3128; // It sounds like "Summatia" in Cantonese lol

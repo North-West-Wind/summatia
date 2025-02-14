@@ -1,9 +1,6 @@
 import "dotenv/config";
 import { Summatia } from "./summatia";
-import AiModule from "./modules/ai";
 import LargeMediaModule from "./modules/large-media";
-import ListenCommand from "./modules/commands/listen";
-import UnlistenCommand from "./modules/commands/unlisten";
 import { LinkModerationModule } from "./modules/moderation/link";
 import { HelpCommand } from "./modules/commands/help";
 import { RssCommand } from "./modules/commands/rss";
