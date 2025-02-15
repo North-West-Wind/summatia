@@ -47,7 +47,7 @@ export default class LargeMediaModule extends SummatiaModule implements MatrixHa
 					return `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">@${profile.displayname}</a>`;
 			}
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to get Matrix user profile.", err);
 		}
 		return "Somebody";
 	}

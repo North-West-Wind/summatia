@@ -6,6 +6,7 @@ import { SummatiaDatabase } from "./db";
 import { SummatiaCommandModule } from "./modules/commands";
 import { mkdirSync } from "fs";
 import { SummatiaRest } from "./rest";
+import Logger from "./helpers/logger";
 
 // Summatia handles both Matrix and Discord
 export class Summatia {
@@ -64,14 +65,6 @@ export class Summatia {
 		this.rest = new SummatiaRest();
 	}
 
-	matrixLog(...things: any[]) {
-		console.log("[Matrix]", ...things);
-	}
-
-	discordLog(...things: any[]) {
-		console.log("[Discord]", ...things);
-	}
-
 	addModule(module: SummatiaModule) {
 		for (const listen of module.listen) {
 			if (!this.modules[listen]) this.modules[listen] = new Map();
@@ -112,7 +105,7 @@ export class Summatia {
 				try {
 					await (command as SummatiaCommandModule).onDiscordCommandInteraction(this, interaction);
 				} catch (err) {
-					console.error(err);
+					Logger.discord.error(`Interaction execution of ${command.name} went wrong.`, err);
 					if (interaction.replied || interaction.deferred) await interaction.followUp({ content: "It didn't work :<", flags: MessageFlags.Ephemeral });
 					else await interaction.reply({ content: "It didn't work :<", flags: MessageFlags.Ephemeral });
 				}
@@ -154,13 +147,13 @@ export class Summatia {
 
 		// init modules with INIT
 		for (const module of this.modules[SummatiaListeners.INIT].values() || []) {
-			console.log(`Initializing ${module.name}...`);
+			Logger.module.log(`Initializing ${module.name}...`);
 			await (module as unknown as Initialized).init(this);
 		}
 
 		this.rest.setup();
 
-		console.log("Finished setup");
+		Logger.system.log("Finished setup");
 	}
 
 	// login and stuff
@@ -168,11 +161,11 @@ export class Summatia {
 		this.startTime = Date.now();
 
 		await Promise.all([
-			this.useMatrix ? this.matrix.start().then(async () => this.matrixLog(`${await this.matrix!.getUserId()} is ready!`)) : undefined,
+			this.useMatrix ? this.matrix.start().then(async () => Logger.matrix.log(`${await this.matrix!.getUserId()} is ready!`)) : undefined,
 			new Promise<void>(res => {
 				if (!this.useDiscord) return res();
 				this.discord.once(Events.ClientReady, async readyClient => {
-					this.discordLog(`${readyClient.user.tag} is ready!`);
+					Logger.discord.log(`${readyClient.user.tag} is ready!`);
 					this.setDiscordPresence("online");
 					res();
 				});
@@ -182,7 +175,7 @@ export class Summatia {
 		]);
 
 		for (const module of this.modules[SummatiaListeners.START].values() || []) {
-			console.log(`Starting ${module.name}...`);
+			Logger.module.log(`Starting ${module.name}...`);
 			await (module as unknown as Startup).start(this);
 		}
 
@@ -196,7 +189,7 @@ export class Summatia {
 		this.discord.rest.setToken(process.env.DISCORD_TOKEN!);
 		const commands = Array.from(this.modules[SummatiaListeners.DISCORD_COMMAND_INTERACTION].values() || []).map(cmd => (cmd as SummatiaCommandModule).getSlashCommandBuilder(this).toJSON());
 		try {
-			this.discordLog(`Started refreshing ${commands.length} application (/) commands.`);
+			Logger.discord.log(`Started refreshing ${commands.length} application (/) commands.`);
 
 			let data: unknown;
 			if (process.env.GUILD_ID)
@@ -210,10 +203,9 @@ export class Summatia {
 					{ body: commands },
 				);
 	
-			this.discordLog(`Successfully reloaded ${(data as []).length} application (/) commands.`);
+			Logger.discord.log(`Successfully reloaded ${(data as []).length} application (/) commands.`);
 		} catch (error) {
-			// And of course, make sure you catch and log any errors!
-			console.error(error);
+			Logger.discord.error("Failed to refresh application (/) commands.", error);
 		}
 	}
 
@@ -221,7 +213,7 @@ export class Summatia {
 		const data: PresenceData = { status };
 		if (status == "online") data.activities = [{ name: "Integrelle", type: ActivityType.Playing }];
 		this.discord.user.setPresence(data);
-		this.discordLog(`${this.discord.user.tag} is ${status}`);
+		Logger.discord.log(`${this.discord.user.tag} is ${status}`);
 	}
 
 	async getRoomParents(roomId: string) {

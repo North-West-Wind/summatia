@@ -7,6 +7,7 @@ import { RssDatabaseProvider } from "./database-providers/rss";
 import { Splatoon3DatabaseProvider } from "./database-providers/splatoon3";
 import { EmojiDatabaseProvider } from "./database-providers/emoji";
 import { SummatiaDatabaseProvider } from "./database-providers/provider";
+import Logger from "./helpers/logger";
 
 export class SummatiaDatabase {
 	private db: Database;
@@ -38,10 +39,10 @@ export class SummatiaDatabase {
 
 	async init() {
 		try {
-			this.log("Ensuring migration version table exists...");
+			Logger.db.log("Ensuring migration version table exists...");
 			await this.ensureMigrateVersionTable();
 			for (const provider of Object.values(this.providers)) {
-				this.log(`Initializing database provider ${provider.name}...`);
+				Logger.db.log(`Initializing database provider ${provider.name}...`);
 				const [version, create] = await this.getProviderVersion(provider);
 				await provider.migrate(version);
 				if (version != provider.version)
@@ -49,8 +50,7 @@ export class SummatiaDatabase {
 			}
 			this.ready = true;
 		} catch (err) {
-			this.log("Failed to initialize database");
-			console.error(err);
+			Logger.db.error("Failed to initialize database", err);
 		}
 	}
 
@@ -98,9 +98,5 @@ export class SummatiaDatabase {
 				else res();
 			});
 		})
-	}
-
-	private log(message: string, ...args: any[]) {
-		console.log(`[DB] ${message}`, ...args);
 	}
 }

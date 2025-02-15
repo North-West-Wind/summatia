@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import express from "express";
 import { AddressInfo } from "net";
+import Logger from "./helpers/logger";
 
 const PORT = 3128; // It sounds like "Summatia" in Cantonese lol
 const HOST = "https://smta.northwestw.in";
@@ -27,7 +28,7 @@ export class SummatiaRest {
 	}
 
 	start() {
-		const server = this.app.listen(process.env.PORT || PORT, () => console.log(`REST listening at port ${(server.address() as AddressInfo).port}`));
+		const server = this.app.listen(process.env.PORT || PORT, () => Logger.rest.log(`REST listening at port ${(server.address() as AddressInfo).port}`));
 	}
 
 	fullPath(path: string) {
@@ -35,7 +36,7 @@ export class SummatiaRest {
 	}
 
 	private log(message: string, ...args: any[]) {
-		console.log("[REST] " + message, ...args);
+		Logger.rest.log("[REST] " + message, ...args);
 	}
 
 	addTmpFile(data: Buffer, type: string, timeout: number) {

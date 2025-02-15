@@ -51,7 +51,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 					reply = previous.join("\n");
 				}
 			} catch (err) {
-				console.error(err);
+				this.logger.error("Failed to get reply relation event.", err);
 			}
 		}
 
@@ -98,7 +98,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 			if (res && typeof res === "string")
 				await message.channel.send(res);
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to AI reply Discord.", err);
 		}
 		clearInterval(interval);
 	}

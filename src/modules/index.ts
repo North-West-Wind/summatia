@@ -30,15 +30,18 @@ export type SummatiaOption = {
 export class SummatiaModule {
 	name: string;
 	listen: SummatiaListeners[];
+	logger: Logger;
 
 	constructor(name: string, options: SummatiaOption = { listen: [] }) {
 		this.name = name;
 		this.listen = options.listen;
+		this.logger = new Logger(name);
 	}
 }
 
 // This must be put after SummatiaModule
 import { Summatia } from "../summatia";
+import Logger from "../helpers/logger";
 
 export interface Initialized {
 	init(summatia: Summatia): void | Promise<void>;

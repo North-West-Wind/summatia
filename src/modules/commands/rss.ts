@@ -30,17 +30,17 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		const rss = summatia.database.providers.rss;
 		for (const row of await rss.getRssFeeds())
 			this.rss.set(row.id, { url: row.url, timestamp: row.timestamp });
-		console.log(`Loaded ${this.rss.size} RSS feeds.`);
+		this.logger.log(`Loaded ${this.rss.size} RSS feeds.`);
 		for (const row of await rss.getRssDiscordFeeds()) {
 			if (!this.rssDiscord.has(row.rss)) this.rssDiscord.set(row.rss, new Map());
 			this.rssDiscord.get(row.rss)!.set(row.channel, row.template || DEFAULT_TEMPLATE);
 		}
-		console.log(`Loaded ${this.rssDiscord.size ? Array.from(this.rssDiscord.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Discord.`);
+		this.logger.log(`Loaded ${this.rssDiscord.size ? Array.from(this.rssDiscord.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Discord.`);
 		for (const row of await rss.getRssMatrixFeeds()) {
 			if (!this.rssMatrix.has(row.rss)) this.rssMatrix.set(row.rss, new Map());
 			this.rssMatrix.get(row.rss)!.set(row.room, row.template || DEFAULT_TEMPLATE);
 		}
-		console.log(`Loaded ${this.rssMatrix.size ? Array.from(this.rssMatrix.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Matrix.`);
+		this.logger.log(`Loaded ${this.rssMatrix.size ? Array.from(this.rssMatrix.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Matrix.`);
 	}
 
 	async start(summatia: Summatia) {
@@ -184,7 +184,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 
 			return { message: `Listening to RSS feed ${id}`, error: false };
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to add RSS feed.", err);
 			return { message: "Could not add this RSS feed!", error: true };
 		}
 	}
@@ -203,7 +203,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				else await summatia.database.providers.rss.addRssDiscordFeed(id, channelOrRoom);
 			}
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to add bridged RSS feed.", err);
 		}
 	}
 
@@ -219,7 +219,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			}
 			return { message: `This ${isMatrix ? "room" : "channel"} is not subscribed to this RSS feed.`, error: true };
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to remove RSS feed.", err);
 			return { message: "Could not remove this RSS feed!", error: true };
 		}
 	}
@@ -236,7 +236,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				}
 			}
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to remove bridged RSS feed.", err);
 		}
 	}
 
@@ -256,7 +256,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				error: false
 			};
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to list RSS feeds.", err);
 			return { message: "Could not list RSS feeds!", error: true };
 		}
 	}
@@ -276,7 +276,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				return `\n\nBridged ${isMatrix ? "room" : "channel"} subscribed to:  \n${feeds.join("  \n")}`;
 			} else return "";
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to list bridged RSS feeds.", err);
 			return "";
 		}
 	}
@@ -302,7 +302,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 
 			return { message: `New template set. \`${template}\``, error: true };
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to set RSS template.", err);
 			return { message: "Could not remove this RSS feed!", error: true };
 		}
 	}
@@ -321,13 +321,13 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				else await summatia.database.providers.rss.setRssDiscordTemplate(id, channelOrRoom, template);
 			}
 		} catch (err) {
-			console.error(err);
+			this.logger.error("Failed to set bridged RSS template.", err);
 		}
 	}
 
 	private async updateFeeds() {
 		if (!this.summatia) return;
-		console.log(`Polling ${this.rss.size} RSS feeds...`);
+		this.logger.log(`Polling ${this.rss.size} RSS feeds...`);
 		for (const [id, entry] of this.rss.entries()) {
 			const feedFields = new Set<string>(), itemFields = new Set<any>();
 			for (const [_, template] of Array.from(this.rssMatrix.get(id)?.entries() || []).concat(Array.from(this.rssDiscord.get(id)?.entries() || []))) {
@@ -355,7 +355,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 								const channel = await this.summatia.database.providers.bridge.getRoomChannel(roomId);
 								if (channel) bridged.add(channel);
 							} catch (err) {
-								console.error(err);
+								this.logger.error(`Failed to send RSS feed to Matrix room ${roomId}.`, err);
 							}
 						}
 
@@ -368,7 +368,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 								if (channel?.isTextBased())
 									await (channel as PartialTextBasedChannelFields).send(this.formatTemplate(template, feed, item));
 							} catch (err) {
-								console.error(err);
+								this.logger.error(`Failed to send RSS feed to Discord channel ${channelId}.`, err);
 							}
 						}
 					
@@ -378,7 +378,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 						try {
 							await this.summatia.database.providers.rss.setRssFeedTimestamp(id, newMaxTimestamp);
 						} catch (err) {
-							console.error(err);
+							this.logger.error(`Failed to store RSS timestamp for feed ${id}.`, err);
 						}
 					}
 				}
@@ -386,7 +386,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				// feed may be down. don't spam my log
 			}
 		}
-		console.log(`RSS polling complete.`);
+		this.logger.log(`RSS polling complete.`);
 		setTimeout(() => this.updateFeeds(), RSS_INTERVAL);
 	}
 

@@ -133,7 +133,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 					this.setSubscriptions(summatia, interaction.channelId, Array.from(selection.values()))
 						.then(async () => await interaction.editReply({ content: `Subscribed to ${selection.size ? Array.from(selection.values()).map(v => `**${(this.events as any)[v]}**`).join(", ") : "nothing :<"}`, components: [] }))
 						.catch(async err => {
-							console.error(err);
+							this.logger.error("Failed to set Discord subscriptions.", err);
 							await interaction.editReply({ content: "Ah! Something went wrong! ;▵;", components: [] });
 						});
 				} else await interaction.editReply({ content: "Cancelled :<", components: [] });
@@ -156,7 +156,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			this.setSubscriptions(summatia, roomId, Array.from(selection.values()))
 				.then(async () => await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(`Subscribed to ${selection.size ? Array.from(selection.values()).map(v => `**${(this.events as any)[v]}**`).join(", ") : "nothing :<"}`)))
 				.catch(async err => {
-					console.error(err);
+					this.logger.error("Failed to set Matrix subscriptions.", err);
 					await summatia.matrix.replyText(roomId, event, "Ah! Something went wrong! ;▵;");
 				});
 		} else if (args[0] == "subscriptions") await summatia.matrix.replyHtmlText(roomId, event, renderMarkdown(await this.getSubscriptions(summatia, roomId)));
@@ -392,7 +392,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	}
 
 	private async rotationUpdate() {
-		console.log("Updating Splatoon 3 rotation...");
+		this.logger.log("Updating Splatoon 3 rotation...");
 		const messages = new Map<keyof typeof this.events, { str: string, img?: string }[]>();
 
 		const challenge = (await Splatoon3.getChallenges())[0];
@@ -435,7 +435,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		for (const record of Array.from(Object.values(await Splatoon3Extra.getFullSplatfests())).map(records => records[0])) {
 			if (!this.pastFests.has(record.__splatoon3ink_id) && record.state == "SCHEDULED") {
 				this.pastFests.add(record.__splatoon3ink_id);
-				this.summatia.database.providers.splatoon3.addPastFest(record.__splatoon3ink_id).catch(console.error);
+				this.summatia.database.providers.splatoon3.addPastFest(record.__splatoon3ink_id).catch(err => this.logger.error(`Failed to add fest ${record.title} (${record.__splatoon3ink_id}) to past fests.`, err));
 				if (!festSoon) {
 					festSoon = true;
 					messages.set("festSoon", [{ str: "Splatfest happening soon! You can vote now!" }]);
@@ -509,7 +509,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			try {
 				await send(str, img);
 			} catch (err) {
-				console.error(err);
+				this.logger.error("Failed to send rotation message.", err);
 			}
 		}
 	}

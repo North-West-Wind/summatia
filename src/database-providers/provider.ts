@@ -1,4 +1,5 @@
 import { Database } from "sqlite3";
+import Logger from "../helpers/logger";
 
 export abstract class SummatiaDatabaseProvider {
 	readonly name: string;
@@ -18,14 +19,14 @@ export abstract class SummatiaDatabaseProvider {
 
 	async migrate(currentVersion?: number) {
 		if (currentVersion === undefined) {
-			console.log("Creating database provider", this.name);
+			Logger.db.log("Creating database provider", this.name);
 			await this.migrations()[0]();
 		} else {
 			while (currentVersion < this.version) {
 				await this.migrations()[++currentVersion]();
-				console.log(`Migrated "${this.name}" from v${currentVersion - 1} to v${currentVersion}`);
+				Logger.db.log(`Migrated "${this.name}" from v${currentVersion - 1} to v${currentVersion}`);
 			}
-			console.log(`${this.name} is up-to-date (v${currentVersion}).`);
+			Logger.db.log(`${this.name} is up-to-date (v${currentVersion}).`);
 		}
 	}
 
