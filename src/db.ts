@@ -38,7 +38,7 @@ export class SummatiaDatabase {
 
 	async init() {
 		try {
-			this.log("Ensuring migration version table...");
+			this.log("Ensuring migration version table exists...");
 			await this.ensureMigrateVersionTable();
 			for (const provider of Object.values(this.providers)) {
 				this.log(`Initializing database provider ${provider.name}...`);
@@ -95,6 +95,7 @@ export class SummatiaDatabase {
 						if (err) rej(err);
 						else res();
 					});
+				else res();
 			});
 		})
 	}
