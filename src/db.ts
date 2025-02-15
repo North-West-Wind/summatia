@@ -40,6 +40,7 @@ export class SummatiaDatabase {
 		try {
 			await this.ensureMigrateVersionTable();
 			for (const provider of Object.values(this.providers)) {
+				this.log("Initializing database provider", provider.name);
 				const [version, create] = await this.getProviderVersion(provider);
 				await provider.migrate(version);
 				if (version != provider.version)
@@ -47,7 +48,7 @@ export class SummatiaDatabase {
 			}
 			this.ready = true;
 		} catch (err) {
-			console.log("Failed to initialize database");
+			this.log("Failed to initialize database");
 			console.error(err);
 		}
 	}
@@ -95,5 +96,9 @@ export class SummatiaDatabase {
 					});
 			});
 		})
+	}
+
+	private log(message: string, ...args: any[]) {
+		console.log(`[DB] ${message}`, ...args);
 	}
 }
