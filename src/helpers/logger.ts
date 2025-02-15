@@ -23,20 +23,22 @@ export default class Logger {
 	}
 
 	log(message: string, ...args: any[]) {
-		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 3).fill(" ").join("");
-		const log = logger.bgColor(this.color);
+		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 2).fill(" ").join("");
+		const log = logger.append(space).color(this.color);
 		if (this.prefix) log.append(`[${this.prefix}]`);
-		log.reset().append(space);
+		log.reset().append(" ");
 		log.append(message, ...args);
+		log.setLevel("info");
 		log.log();
 	}
 
 	error(message?: string, error?: any) {
-		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 3).fill(" ").join("");
-		const log = logger.bgColor(this.color);
+		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 2).fill(" ").join("");
+		const log = logger.append(space).color(this.color);
 		if (message) {
 			if (this.prefix) log.append(`[${this.prefix}]`);
-			log.color("red").append(space, message);
+			log.color("red").append(" ", message);
+			log.setLevel("error");
 			log.log();
 		}
 		if (error) console.error(error);
