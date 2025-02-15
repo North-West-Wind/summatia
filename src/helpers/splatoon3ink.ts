@@ -43,7 +43,7 @@ export class Splatoon3ExtraClient {
 		if (this.shouldUseCache(this.coopData)) coop = this.coopData!.data;
 		else {
 			const res = await fetch("https://splatoon3.ink/data/schedules.json", { headers: { "User-Agent": this.userAgent } });
-			coop = (await res.json()); // this is not quite right yet
+			coop = (await res.json()).coopGroupingSchedule.teamContestSchedules.nodes; // this is not quite right yet
 			coop = coop.map(s => {
 				s.setting.coopStage.image = (s.setting.coopStage.image as any).url;
 				s.setting.weapons = s.setting.weapons.map(w => {

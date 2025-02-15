@@ -5,7 +5,7 @@ import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
 import { SummatiaCommandHelpModule } from "../commands";
 import moment, { MomentInput } from "moment";
-import { Initialized, SummatiaListeners } from "..";
+import { Initialized, Startup, SummatiaListeners } from "..";
 import { BitflagManipulator } from "../../database-providers/splatoon3";
 import { renderMarkdown } from "../../helpers/strings";
 import { schedule } from "node-cron";
@@ -26,7 +26,7 @@ type DoubleRotation = {
 	mode2: (SplatRotation | FestRotation | null)[];
 }
 
-export class Splatoon3Command extends SummatiaCommandHelpModule implements Initialized {
+export class Splatoon3Command extends SummatiaCommandHelpModule implements Initialized, Startup {
 	lobbies = ["turf", "anarchy", "x", "fest", "salmon", "challenge"];
 	singleLobby = ["turf", "x"];
 	// DO NOT change this order!
@@ -44,7 +44,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 	summatia!: Summatia;
 
 	constructor() {
-		super("splatoon3", { listen: [SummatiaListeners.INIT] });
+		super("splatoon3", { listen: [SummatiaListeners.INIT, SummatiaListeners.START] });
 		this.subscriptions = new Map();
 		for (const key of Object.keys(this.events))
 			this.subscriptions.set(key, new Set());
@@ -61,6 +61,10 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		this.pastFests = new Set(await summatia.database.providers.splatoon3.getPastFests());
 		this.summatia = summatia;
 		schedule("0 */2 * * *", this.rotationUpdate.bind(this));
+	}
+
+	async start() {
+		await this.rotationUpdate();
 	}
 
 	description() {
