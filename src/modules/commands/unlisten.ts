@@ -28,5 +28,5 @@ export default class UnlistenCommand extends SummatiaCommandHelpModule {
 		await interaction.reply("Welp. Bye!");
 	}
 
-	onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {}
+	onMatrixMessage(_summatia: Summatia, _roomId: string, _event: RoomMessageEvent) {}
 }

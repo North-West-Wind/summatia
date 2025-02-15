@@ -88,7 +88,9 @@ export class LinkModerationModule extends SummatiaModule implements MatrixHandle
 					for (const { message } of map.values())
 						try {
 							await message.delete();
-						} catch (err) { }
+						} catch (err) {
+							this.logger.error("Failed to delete message.", err);
+						}
 
 				userLink.channels.clear();
 				userLink.timeouts.forEach(timeout => clearTimeout(timeout));

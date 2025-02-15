@@ -32,7 +32,9 @@ export class BridgeCommand extends SummatiaCommandHelpModule {
 				const events = await summatia.matrix.getRoomState(roomId);
 				for (let ii = events.length - 1; ii >= 0; ii--)
 					if (events[ii].type === "m.room.name") roomPart += ` (${events[ii].content.name})`;
-			} catch (err) { }
+			} catch (err) {
+				this.logger.error(`Failed to get room state for ${roomId}.`, err);
+			}
 			await interaction.reply(`${channelPart} <-> ${roomPart}`);
 		}
 	}
@@ -51,7 +53,9 @@ export class BridgeCommand extends SummatiaCommandHelpModule {
 			try {
 				const channel = await summatia.discord.channels.fetch(channelId);
 				if (channel instanceof GuildChannel) channelPart += ` (#${channel.name})`;
-			} catch (err) { }
+			} catch (err) {
+				this.logger.error(`Failed to get Discord channel name for ${channelId}.`, err)
+			}
 			await summatia.matrix.replyText(roomId, event, `${roomPart} <-> ${channelPart}`);
 		}
 	}

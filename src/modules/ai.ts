@@ -70,7 +70,9 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 					try {
 						const profile = await summatia.matrix.getUserProfile(match.slice(1, -1));
 						if (profile) body = body.replace(new RegExp(match.replace(/\./, "\\."), "g"), "@" + profile.displayname);
-					} catch (err) { }
+					} catch (err) {
+						this.logger.error(`Failed to get user profile of ${match.slice(1, -1)}`, err);
+					}
 				}
 			const res = await this.chat((await summatia.matrix.getUserProfile(event.sender)).displayname, platform, { message: body, reply }, Date.now() - event.origin_server_ts > 60000);
 			if (typeof res === "string") await summatia.matrix.replyText(roomId, event, res);
@@ -89,7 +91,7 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 			if (message.channel.isDMBased()) res = await this.chatDiscord(message.author.displayName, "Discord Direct Message", message, false);
 			else if (message.mentions.has(message.client.user.id) ||
 				message.content.toLowerCase().includes("summatia") ||
-				message.type == MessageType.Reply && (await message.channel.messages.fetch(message.reference?.messageId!)).author.id == message.client.user.id) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
+				message.type == MessageType.Reply && message.reference?.messageId && (await message.channel.messages.fetch(message.reference.messageId)).author.id == message.client.user.id) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
 			else {
 				const chance = await summatia.database.providers.listen.shouldListen(message.channelId);
 				if (chance >= 0) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, Math.random() * 100 > chance);
@@ -144,9 +146,11 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 			for (const attachment of message.attachments.values()) {
 				if (!attachment.contentType?.startsWith("image/")) continue;
 				try {
-					const res = await fetch(attachment.proxyURL);
+					const res = await fetch(attachment.url);
 					if (res.ok) images.push((await res.buffer()).toString("base64"));
-				} catch (err) { }
+				} catch (err) {
+					this.logger.error("Failed to convert attachment to Base64.", err);
+				}
 			}
 			imgs = images;
 		}

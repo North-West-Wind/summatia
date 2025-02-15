@@ -43,7 +43,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 		this.logger.log(`Loaded ${this.rssMatrix.size ? Array.from(this.rssMatrix.values()).map(m => m.size).reduce((a, b) => a + b) : 0} RSS subscriptions for Matrix.`);
 	}
 
-	async start(summatia: Summatia) {
+	async start(_summatia: Summatia) {
 		this.updateFeeds();
 	}
 
@@ -140,7 +140,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 			case "list":
 				result = await this.listFeeds(summatia, roomId, true);
 				break;
-			case "template":
+			case "template": {
 				if (!args.length || isNaN(parseInt(args[0]))) {
 					await summatia.matrix.sendText(roomId, "No RSS feed ID provided.");
 					return;
@@ -149,6 +149,7 @@ export class RssCommand extends SummatiaCommandHelpModule implements Initialized
 				if (!allowed && template) result = notAllowedResult;
 				else result = await this.getOrSetTemplate(summatia, parseInt(args.shift()!), template, roomId, true);
 				break;
+			}
 		}
 		if (result) await summatia.matrix.sendHtmlText(roomId, renderMarkdown(result.message));
 	}
