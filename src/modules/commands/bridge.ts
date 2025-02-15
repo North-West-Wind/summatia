@@ -1,6 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, GuildChannel } from "discord.js";
-import { RoomMessageEvent } from "../../types/events";
+import { ChatInputCommandInteraction, GuildChannel,SlashCommandBuilder } from "discord.js";
+
 import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
 import { SummatiaCommandHelpModule } from "../commands";
 
 export class BridgeCommand extends SummatiaCommandHelpModule {

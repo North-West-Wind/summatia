@@ -1,11 +1,12 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, Snowflake, PartialTextBasedChannelFields, PermissionFlagsBits, SlashCommandIntegerOption } from "discord.js";
-import { RoomMessageEvent } from "../../types/events";
-import { Summatia } from "../../summatia";
-import { SummatiaCommandHelpModule } from "../commands";
-import { Initialized, Startup, SummatiaListeners } from "..";
-import Parser from "rss-parser";
-import { cleanUrl, renderMarkdown } from "../../helpers/strings";
+import { ChatInputCommandInteraction, PartialTextBasedChannelFields, PermissionFlagsBits, SlashCommandBuilder, SlashCommandIntegerOption,SlashCommandStringOption, SlashCommandSubcommandBuilder, Snowflake } from "discord.js";
 import { PowerLevelAction } from "matrix-bot-sdk";
+import Parser from "rss-parser";
+
+import { cleanUrl, renderMarkdown } from "../../helpers/strings";
+import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
+import { Initialized, Startup, SummatiaListeners } from "..";
+import { SummatiaCommandHelpModule } from "../commands";
 
 const RSS_INTERVAL = 10 * 60 * 1000;
 const DEFAULT_TEMPLATE = "New item from {{feed.title}}: {{contentSnippet}}  \n{{link}}";

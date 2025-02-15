@@ -1,14 +1,15 @@
 import "dotenv/config";
-import { Summatia } from "./summatia";
-import LargeMediaModule from "./modules/large-media";
-import { LinkModerationModule } from "./modules/moderation/link";
-import { HelpCommand } from "./modules/commands/help";
-import { RssCommand } from "./modules/commands/rss";
-import { JitsiCommand } from "./modules/commands/jitsi";
+
 import { BridgeCommand } from "./modules/commands/bridge";
-import { Splatoon3Command } from "./modules/commands/splatoon3";
-import { InviteModerationModule } from "./modules/moderation/invite";
 import { EmojiCommand } from "./modules/commands/emoji";
+import { HelpCommand } from "./modules/commands/help";
+import { JitsiCommand } from "./modules/commands/jitsi";
+import { RssCommand } from "./modules/commands/rss";
+import { Splatoon3Command } from "./modules/commands/splatoon3";
+import LargeMediaModule from "./modules/large-media";
+import { InviteModerationModule } from "./modules/moderation/invite";
+import { LinkModerationModule } from "./modules/moderation/link";
+import { Summatia } from "./summatia";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);

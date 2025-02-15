@@ -1,5 +1,7 @@
 import "dotenv/config";
+
 import { MatrixAuth } from "matrix-bot-sdk";
+
 import Logger from "../logger";
 
 if (!process.env.MATRIX_HOMESERVER) throw new Error("homeserver not set");

@@ -1,5 +1,5 @@
-import { RoomMessageEvent } from "../../types/events";
 import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
 import { SummatiaMatrixCommandHelpModule } from "../commands";
 
 export class JitsiCommand extends SummatiaMatrixCommandHelpModule {

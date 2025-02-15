@@ -1,12 +1,13 @@
 import { mkdirSync } from "fs";
 import { Database, verbose } from "sqlite3";
+
+import { BridgeDatabaseProvider } from "./database-providers/bridge";
+import { EmojiDatabaseProvider } from "./database-providers/emoji";
 import { LinkDatabaseProvider } from "./database-providers/link";
 import { ListenDatabaseProvider } from "./database-providers/listen";
-import { BridgeDatabaseProvider } from "./database-providers/bridge";
+import { SummatiaDatabaseProvider } from "./database-providers/provider";
 import { RssDatabaseProvider } from "./database-providers/rss";
 import { Splatoon3DatabaseProvider } from "./database-providers/splatoon3";
-import { EmojiDatabaseProvider } from "./database-providers/emoji";
-import { SummatiaDatabaseProvider } from "./database-providers/provider";
 import Logger from "./helpers/logger";
 
 export class SummatiaDatabase {

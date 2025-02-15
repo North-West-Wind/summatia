@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, GuildEmoji, GuildMember, Message, MessageReaction, MessageReactionEventDetails, PartialGuildMember, PartialMessageReaction, PartialUser, SlashCommandBuilder, User } from "discord.js";
+
 import { RoomMessageEvent } from "../types/events";
 
 type PromiseOpt<T> = T | Promise<T>;
@@ -40,8 +41,8 @@ export class SummatiaModule {
 }
 
 // This must be put after SummatiaModule
-import { Summatia } from "../summatia";
 import Logger from "../helpers/logger";
+import { Summatia } from "../summatia";
 
 export interface Initialized {
 	init(summatia: Summatia): void | Promise<void>;

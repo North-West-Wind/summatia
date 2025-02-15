@@ -1,7 +1,5 @@
 import logger from "node-color-log";
 
-const func = logger.bgColor;
-
 type BgColor = Parameters<typeof logger.bgColor>[0];
 
 export default class Logger {

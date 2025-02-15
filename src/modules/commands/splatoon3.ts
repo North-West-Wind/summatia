@@ -1,19 +1,20 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, Snowflake, TextChannel, AttachmentBuilder } from "discord.js";
-import { Client } from "splatoon3api";
-import { ChallengeTimePeriod, FestRotation, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
-import { RoomMessageEvent } from "../../types/events";
-import { Summatia } from "../../summatia";
-import { SummatiaCommandHelpModule } from "../commands";
+import { ActionRowBuilder, AttachmentBuilder,ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, ComponentType, SlashCommandBuilder, SlashCommandStringOption, SlashCommandSubcommandBuilder, Snowflake, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextChannel } from "discord.js";
+import { imageMeta } from "image-meta";
+import mimeLite from "mime-lite";
 import moment, { MomentInput } from "moment";
-import { Initialized, Startup, SummatiaListeners } from "..";
-import { BitflagManipulator } from "../../database-providers/splatoon3";
-import { renderMarkdown } from "../../helpers/strings";
 import { schedule } from "node-cron";
 import fetch from "node-fetch";
-import { imageMeta } from "image-meta";
+import { Client } from "splatoon3api";
+import { ChallengeTimePeriod, FestRotation, SalmonSchedule, SplatChallenge, SplatRotation, SplatStage } from "splatoon3api/dist/types";
+
+import { BitflagManipulator } from "../../database-providers/splatoon3";
 import { imageMessageContent } from "../../helpers/matrix/sender";
-import mimeLite from "mime-lite";
 import { Splatoon3ExtraClient } from "../../helpers/splatoon3ink";
+import { renderMarkdown } from "../../helpers/strings";
+import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
+import { Initialized, Startup, SummatiaListeners } from "..";
+import { SummatiaCommandHelpModule } from "../commands";
 
 const Splatoon3 = new Client();
 Splatoon3.options.userAgent = `summatia/1.0.0`;

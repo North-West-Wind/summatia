@@ -1,4 +1,5 @@
 import { Database } from "sqlite3";
+
 import Logger from "../helpers/logger";
 
 export abstract class SummatiaDatabaseProvider {

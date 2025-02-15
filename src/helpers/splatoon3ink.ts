@@ -1,8 +1,9 @@
 // Helper for getting data from Splatoon3.ink. The splatoon3api package is too incomplete
 
-import { FestRegion } from "splatoon3api/dist/types";
-import { EggstraWorkSchedule, FestRecord } from "../types/splatoon3";
 import { schedule } from "node-cron";
+import { FestRegion } from "splatoon3api/dist/types";
+
+import { EggstraWorkSchedule, FestRecord } from "../types/splatoon3";
 
 type CachedData = {
 	data: any;

@@ -1,4 +1,5 @@
 import { Database } from "sqlite3";
+
 import { SummatiaDatabaseProvider } from "./provider";
 
 export class BitflagManipulator {

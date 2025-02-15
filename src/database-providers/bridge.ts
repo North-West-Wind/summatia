@@ -1,6 +1,7 @@
 import { Snowflake } from "discord.js";
-import { SummatiaDatabaseProvider } from "./provider";
 import { Database, verbose } from "sqlite3";
+
+import { SummatiaDatabaseProvider } from "./provider";
 
 export class BridgeDatabaseProvider extends SummatiaDatabaseProvider {
 	mautrixDb?: Database;

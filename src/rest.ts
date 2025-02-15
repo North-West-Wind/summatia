@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import express from "express";
 import { AddressInfo } from "net";
+
 import Logger from "./helpers/logger";
 
 const PORT = 3128; // It sounds like "Summatia" in Cantonese lol

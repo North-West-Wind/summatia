@@ -1,6 +1,7 @@
 import { Snowflake } from "discord.js";
-import { SummatiaDatabaseProvider } from "./provider";
 import { Database } from "sqlite3";
+
+import { SummatiaDatabaseProvider } from "./provider";
 
 type GuildEmoji = {
 	guildId: Snowflake;

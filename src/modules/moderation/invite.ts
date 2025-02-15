@@ -1,4 +1,5 @@
 import { GuildMember, Snowflake } from "discord.js";
+
 import { Summatia } from "../../summatia";
 import { DiscordGuildMemberHandler, SummatiaModule } from "..";
 

@@ -1,11 +1,12 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandSubcommandBuilder, SlashCommandAttachmentOption, SlashCommandStringOption, Guild, Snowflake, Message, GuildEmoji, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, MessageReaction, PartialMessageReaction, SlashCommandBooleanOption, PermissionFlagsBits, MessageFlags } from "discord.js";
-import { Summatia } from "../../summatia";
-import { SummatiaDiscordCommandHelpModule } from "../commands";
-import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialized, Startup, SummatiaListeners } from "..";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, ComponentType, EmbedBuilder, Guild, GuildEmoji, Message, MessageFlags,MessageReaction, PartialMessageReaction, PermissionFlagsBits, SlashCommandAttachmentOption, SlashCommandBooleanOption, SlashCommandBuilder, SlashCommandStringOption, SlashCommandSubcommandBuilder, Snowflake, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from "discord.js";
+import { imageMeta } from "image-meta";
 import fetch from "node-fetch";
 import sharp from "sharp";
-import { imageMeta } from "image-meta";
+
+import { Summatia } from "../../summatia";
+import { DiscordEmojiHandler, DiscordHandler, DiscordReactionHandler, Initialized, Startup, SummatiaListeners } from "..";
+import { SummatiaDiscordCommandHelpModule } from "../commands";
 
 const REF_SAVE_INTERVAL = 30000;
 type EmojiCacheEntry = { id?: Snowflake, url: string, active: boolean, ref: boolean, animated: boolean };

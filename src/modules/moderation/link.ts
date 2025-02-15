@@ -1,8 +1,9 @@
 import { Message, Snowflake, TextChannel } from "discord.js";
-import { Summatia } from "../../summatia";
-import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
-import { RoomMessageEvent } from "../../types/events";
+
 import { cleanUrl } from "../../helpers/strings";
+import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
+import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
 
 const THRESHOLD = 5,
 	WINDOW_DURATION = 30_000,

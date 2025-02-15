@@ -1,9 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandStringOption } from "discord.js";
-import { Helpful, MatrixHandler, SummatiaListeners } from "..";
-import { RoomMessageEvent } from "../../types/events";
-import { Summatia } from "../../summatia";
-import { SummatiaCommandHelpModule } from "../commands";
+import { ChatInputCommandInteraction, SlashCommandBuilder, SlashCommandStringOption } from "discord.js";
+
 import { renderMarkdown } from "../../helpers/strings";
+import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
+import { Helpful, MatrixHandler, SummatiaListeners } from "..";
+import { SummatiaCommandHelpModule } from "../commands";
 
 export class HelpCommand extends SummatiaCommandHelpModule implements MatrixHandler {
 
