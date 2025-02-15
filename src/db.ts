@@ -38,9 +38,10 @@ export class SummatiaDatabase {
 
 	async init() {
 		try {
+			this.log("Ensuring migration version table...");
 			await this.ensureMigrateVersionTable();
 			for (const provider of Object.values(this.providers)) {
-				this.log("Initializing database provider", provider.name);
+				this.log(`Initializing database provider ${provider.name}...`);
 				const [version, create] = await this.getProviderVersion(provider);
 				await provider.migrate(version);
 				if (version != provider.version)
