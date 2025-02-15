@@ -35,7 +35,7 @@ export class SummatiaModule {
 	constructor(name: string, options: SummatiaOption = { listen: [] }) {
 		this.name = name;
 		this.listen = options.listen;
-		this.logger = new Logger(name);
+		this.logger = new Logger(name, "yellow");
 	}
 }
 
