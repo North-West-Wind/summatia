@@ -35,10 +35,6 @@ export class SummatiaRest {
 		return `${process.env.HOST || HOST}${path}`;
 	}
 
-	private log(message: string, ...args: any[]) {
-		Logger.rest.log("[REST] " + message, ...args);
-	}
-
 	addTmpFile(data: Buffer, type: string, timeout: number) {
 		const uuid = randomUUID();
 		this.tmpFiles.set(uuid, { data, type });

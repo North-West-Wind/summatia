@@ -283,7 +283,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		 	(await summatia.database.providers.emoji.getEmojis(guild.id))?.map(e => ({ name: e.name, url: e.url, active: e.active, ref: e.ref, animated: e.animated }));
 		if (!emojis) {
 			this.emojis.set(guild.id, new Map((await guild.emojis.fetch()).filter(e => e.name).map(e => [e.name!, { url: e.imageURL(), active: true, ref: false, animated: !!e.animated }])));
-			summatia.discordLog(`Setup guild emojis for ${guild.name}`);
+			this.logger.log(`Setup guild emojis for ${guild.name}`);
 		} else {
 			let changed = false;
 			(await guild.emojis.fetch()).filter(e => e.name).forEach(e => {
@@ -305,10 +305,10 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				if (oldActive != e.active) changed = true;
 				return [e.name, e];
 			})));
-			summatia.discordLog(`Restored guild emojis for ${guild.name}`);
+			this.logger.log(`Restored guild emojis for ${guild.name}`);
 			if (changed) {
 				await this.saveGuildEmojis(summatia, guild.id);
-				summatia.discordLog(`Guild emojis for ${guild.name} changed. Syncing to DB...`);
+				this.logger.log(`Guild emojis for ${guild.name} changed. Syncing to DB...`);
 			}
 		}
 	}
