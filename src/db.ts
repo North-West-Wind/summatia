@@ -62,7 +62,7 @@ export class SummatiaDatabase {
 		return new Promise<[number | undefined, boolean]>((res, rej) => {
 			this.db.get("SELECT version FROM migrate_version WHERE name = ?", [provider.name], (err, row?: { version: number }) => {
 				if (err) rej(err);
-				else if (row?.version || !provider.tables()) res([row?.version, !row]);
+				else if (row?.version !== undefined || !provider.tables()) res([row?.version, !row]);
 				else {
 					this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [provider.tables()[0]], (err, row) => {
 						if (err) rej(err);
