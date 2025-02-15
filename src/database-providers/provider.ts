@@ -20,11 +20,13 @@ export abstract class SummatiaDatabaseProvider {
 		if (currentVersion === undefined) {
 			console.log("Creating database provider", this.name);
 			await this.migrations()[0]();
-		} else
+		} else {
 			while (currentVersion < this.version) {
 				await this.migrations()[++currentVersion]();
 				console.log(`Migrated "${this.name}" from v${currentVersion - 1} to v${currentVersion}`);
 			}
+			console.log(`${this.name} is up-to-date (v${currentVersion}).`);
+		}
 	}
 
 	protected async createIfNotExist(name: string, innerQuery: string) {
