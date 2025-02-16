@@ -35,13 +35,13 @@ export default class Logger {
 	log(message: string, ...args: any[]) {
 		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 2).fill(" ").join("");
 		const pre = this.prefix ? colorLogs[this.color](`[${this.prefix}]`) : "";
-		console.log(`${space}${pre}${message}`, ...args);
+		console.log(`${space}${pre} ${message}`, ...args);
 	}
 
 	error(message?: string, error?: any) {
 		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 2).fill(" ").join("");
 		const pre = this.prefix ? colorLogs[this.color](`[${this.prefix}]`) : "";
-		if (message) console.error(`${space}${pre}${chalk.red(message)}`);
+		if (message) console.error(`${space}${pre} ${chalk.red(message)}`);
 		if (error) console.error(error);
 	}
 }
