@@ -22,6 +22,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	async init(summatia: Summatia) {
+		(await summatia.database.providers.emoji.getPointers())?.forEach(({ id, index }) => this.clockPointer.set(id, index));
 		setInterval(async () => {
 			for (const [id, map] of this.emojis.entries())
 				await summatia.database.providers.emoji.updateEmojisRef(id, Array.from(map.entries()).map(([name, emoji]) => ({ name, ...emoji })));
@@ -101,12 +102,12 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 		if (!selfPerm.has(PermissionFlagsBits.ManageGuildExpressions) || !selfPerm.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "I don't have permission to modify emojis!", flags: MessageFlags.Ephemeral });
 		const subcommand = interaction.options.getSubcommand();
 
-		await interaction.deferReply();
+		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 		if (!this.emojis.has(interaction.guildId!)) await this.setupGuild(summatia, interaction.guild);
 
 		switch (subcommand) {
 			case "add": {
-				if (!interaction.memberPermissions?.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
+				if (!interaction.memberPermissions?.has(PermissionFlagsBits.CreateGuildExpressions)) return await interaction.editReply("You don't have permission to do this!");
 
 				const attachment = interaction.options.getAttachment("image", true);
 				const name = (interaction.options.getString("name") || attachment.name.split(".").slice(0, -1).join(".")).replace(/[^\w]/g, "_");
@@ -120,7 +121,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				}
 
 				if (this.emojis.get(interaction.guildId!)!.has(name)) return await interaction.editReply(`The name **${name}** is already in use!`);
-				const replacement = await this.findReplacement(interaction.guildId!, attachment.contentType == "image/gif");
+				const replacement = await this.findReplacement(summatia, interaction.guildId!, attachment.contentType == "image/gif");
 				if (replacement === undefined) return await interaction.editReply("Something just went VERY wrong ;▵;");
 				if (replacement) {
 					if (!replacement.id) replacement.id = (await interaction.guild.emojis.fetch()).find(e => e.name == replacement.name)?.id;
@@ -150,7 +151,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				const att = await this.resizeEmoji(newEmoji.url, newEmoji.animated);
 				if (typeof att === "number") return await int.update({ content: "I used to be able to fit this in 256KB. Now I can't???", embeds: [], components: [] });
 
-				const replacement = await this.findReplacement(interaction.guildId!, newEmoji.animated);
+				const replacement = await this.findReplacement(summatia, interaction.guildId!, newEmoji.animated);
 				if (replacement === undefined) return await int.update({ content: "Something just went VERY wrong ;▵;", embeds: [], components: [] });
 				if (replacement) {
 					if (!replacement.id) replacement.id = (await interaction.guild.emojis.fetch()).find(e => e.name == replacement.name)?.id;
@@ -170,7 +171,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				break;
 			}
 			case "delete": {
-				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.reply({ content: "You don't have permission to do this!", flags: MessageFlags.Ephemeral });
+				if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) return await interaction.editReply("You don't have permission to do this!");
 				const animated = !!interaction.options.getBoolean("animated");
 				const int = await this.emojiBrowser(summatia, interaction, Array.from(this.emojis.get(interaction.guildId!)!.entries()).filter(([_, emoji]) => emoji.animated == animated).map(([name, emoji]) => ({ name, ...emoji })).sort((a, b) => a.name.localeCompare(b.name)));
 				if (!int) return;
@@ -319,7 +320,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	// CLOCK algorithm replacement policy
-	private async findReplacement(guildId: Snowflake, animated: boolean) {
+	private async findReplacement(summatia: Summatia, guildId: Snowflake, animated: boolean) {
 		if (!this.emojis.has(guildId)) return undefined;
 		const map = this.emojis.get(guildId)!;
 		const emojis = Array.from(map.entries()).filter(([_, e]) => e.active && e.animated == animated).sort((a, b) => a[0].localeCompare(b[0]));
@@ -332,6 +333,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 				map.set(name, emoji);
 			} else {
 				this.clockPointer.set(guildId, index);
+				await summatia.database.providers.emoji.setPointer(guildId, index);
 				return { name, ...emoji };
 			}
 			index = (index + 1) % emojis.length;
