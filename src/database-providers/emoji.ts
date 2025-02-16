@@ -25,9 +25,9 @@ export class EmojiDatabaseProvider extends SummatiaDatabaseProvider {
 		return [
 			async () => {
 				await this.createIfNotExist("guildEmojis", "guildId VARCHAR(32) NOT NULL, name VARCHAR(255) NOT NULL, url TEXT NOT NULL, active TINYINT(1) NOT NULL, ref TINYINT(1) NOT NULL, animated TINYINT(1) NOT NULL, PRIMARY KEY (guildId, name)")
-				await this.createIfNotExist("emojiPointer", "id VARCHAR(32) NOT NULL PRIMARY KEY, index INTEGER NOT NULL");
+				await this.createIfNotExist("emojiPointer", "id VARCHAR(32) NOT NULL PRIMARY KEY, pointer INTEGER NOT NULL");
 			},
-			async () => await this.createIfNotExist("emojiPointer", "id VARCHAR(32) NOT NULL PRIMARY KEY, index INTEGER NOT NULL")
+			async () => await this.createIfNotExist("emojiPointer", "id VARCHAR(32) NOT NULL PRIMARY KEY, pointer INTEGER NOT NULL")
 		];
 	}
 
@@ -78,14 +78,14 @@ export class EmojiDatabaseProvider extends SummatiaDatabaseProvider {
 	}
 
 	async getPointers() {
-		return await this.all<{ id: Snowflake, index: number }>("SELECT * FROM emojiPointer");
+		return await this.all<{ id: Snowflake, pointer: number }>("SELECT * FROM emojiPointer");
 	}
 
-	async setPointer(guildId: Snowflake, index: number) {
-		const row = await this.get<{ index: number }>("SELECT index FROM emojiPointer WHERE id = ?", [guildId]);
+	async setPointer(guildId: Snowflake, pointer: number) {
+		const row = await this.get<{ pointer: number }>("SELECT pointer FROM emojiPointer WHERE id = ?", [guildId]);
 		if (row !== undefined) {
-			if (row.index != index) await this.run("UPDATE emojiPointer SET index = ? WHERE id = ?", [index, guildId]);
+			if (row.pointer != pointer) await this.run("UPDATE emojiPointer SET pointer = ? WHERE id = ?", [pointer, guildId]);
 		} else
-			await this.run("INSERT INTO emojiPointer VALUES (?, ?)", [guildId, index]);
+			await this.run("INSERT INTO emojiPointer VALUES (?, ?)", [guildId, pointer]);
 	}
 }

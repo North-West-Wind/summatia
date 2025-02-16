@@ -22,7 +22,7 @@ export class EmojiCommand extends SummatiaDiscordCommandHelpModule implements Di
 	}
 
 	async init(summatia: Summatia) {
-		(await summatia.database.providers.emoji.getPointers())?.forEach(({ id, index }) => this.clockPointer.set(id, index));
+		(await summatia.database.providers.emoji.getPointers())?.forEach(({ id, pointer }) => this.clockPointer.set(id, pointer));
 		setInterval(async () => {
 			for (const [id, map] of this.emojis.entries())
 				await summatia.database.providers.emoji.updateEmojisRef(id, Array.from(map.entries()).map(([name, emoji]) => ({ name, ...emoji })));
