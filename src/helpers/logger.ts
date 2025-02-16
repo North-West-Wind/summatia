@@ -1,6 +1,18 @@
-import logger from "node-color-log";
+import chalk from "chalk";
 
-type BgColor = Parameters<typeof logger.bgColor>[0];
+const colorLogs = {
+	black: chalk.black,
+	blue: chalk.blue,
+	cyan: chalk.cyan,
+	gray: chalk.gray,
+	green: chalk.green,
+	magenta: chalk.magenta,
+	red: chalk.red,
+	white: chalk.white,
+	yellow: chalk.yellow
+};
+
+type BgColor = keyof typeof colorLogs;
 
 export default class Logger {
 	static system = new Logger();
@@ -22,23 +34,14 @@ export default class Logger {
 
 	log(message: string, ...args: any[]) {
 		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 2).fill(" ").join("");
-		const log = logger.append(space).color(this.color);
-		if (this.prefix) log.append(`[${this.prefix}]`);
-		log.reset().append(" ");
-		log.append(message, ...args);
-		log.setLevel("info");
-		log.log();
+		const pre = this.prefix ? colorLogs[this.color](`[${this.prefix}]`) : "";
+		console.log(`${space}${pre}${message}`, ...args);
 	}
 
 	error(message?: string, error?: any) {
 		const space = Array(Logger.maxLength - (this.prefix?.length || -2) + 2).fill(" ").join("");
-		const log = logger.append(space).color(this.color);
-		if (message) {
-			if (this.prefix) log.append(`[${this.prefix}]`);
-			log.color("red").append(" ", message);
-			log.setLevel("error");
-			log.log();
-		}
+		const pre = this.prefix ? colorLogs[this.color](`[${this.prefix}]`) : "";
+		if (message) console.error(`${space}${pre}${chalk.red(message)}`);
 		if (error) console.error(error);
 	}
 }
