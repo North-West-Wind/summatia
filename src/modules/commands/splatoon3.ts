@@ -400,7 +400,7 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 		let challengeStartStr = "";
 		if (challenge && this.isNowBetweenIsos(challenge.timePeriods[0].startTime, challenge.timePeriods[0].endTime)) {
 			challengeStartStr += `# ${challenge.name}\nis starting its first rotation **right now!**  \n`;
-			challengeStartStr += `${challenge.desc}\n\n`;
+			challengeStartStr += `${challenge.desc.replace(/<br *\/>/g, "  \n")}\n\n`;
 			challengeStartStr += `${challenge.eventRule.replace(/<br *\/>/g, "  \n")}\n\n`;
 			challengeStartStr += `**${this.isoStr(challenge.timePeriods[0].startTime)} - ${this.isoStr(challenge.timePeriods[challenge.timePeriods.length - 1].endTime)}** (UTC+00:00)  \n`;
 			challengeStartStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
@@ -412,12 +412,12 @@ export class Splatoon3Command extends SummatiaCommandHelpModule implements Initi
 			const nextTime = this.getNextPeriodIndex(challenge.timePeriods);
 			if (this.isNowBetweenIsos(challenge.timePeriods[nextTime].startTime, challenge.timePeriods[nextTime].endTime)) {
 				challengeHappenStr += `# ${challenge.name}\nis happening **right now!**  \n`;
-				challengeHappenStr += `${challenge.desc}\n\n`;
+				challengeHappenStr += `${challenge.desc.replace(/<br *\/>/g, "  \n")}\n\n`;
 				challengeHappenStr += `${challenge.eventRule.replace(/<br *\/>/g, "  \n")}\n\n`;
 				challengeHappenStr += `**${this.isoStr(challenge.timePeriods[nextTime].startTime)} - ${this.isoStr(challenge.timePeriods[nextTime].endTime)}** (UTC+00:00)  \n`;
 				challengeHappenStr += `${this.stagesStr(challenge.stages)} **${challenge.gameRule}**`;
 			}
-		}
+		} else challengeHappenStr = challengeStartStr;
 		if (challengeHappenStr) messages.set("challengeHappen", [{ str: challengeHappenStr }]);
 
 		const salmon = await Splatoon3.getSalmonRun();
