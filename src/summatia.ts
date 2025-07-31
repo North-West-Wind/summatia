@@ -7,7 +7,7 @@ import Logger from "./helpers/logger";
 import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, DiscordReactionHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaCommandModule } from "./modules/commands";
 import { SummatiaRest } from "./rest";
-import { RoomMessageEvent } from "./types/events";
+import { CustomEmojiAccountData, RoomMessageEvent } from "./types/events";
 
 // Summatia handles both Matrix and Discord
 export class Summatia {
@@ -277,5 +277,15 @@ export class Summatia {
 			if (states[ii].type == "m.room.name")
 				return states[ii].content.name;
 		return "";
+	}
+
+	async getCustomEmojiHTML(shortcode: string) {
+		if (!this.useMatrix) return undefined;
+		if (shortcode.startsWith(":")) shortcode = shortcode.slice(1);
+		if (shortcode.endsWith(":")) shortcode = shortcode.slice(0, shortcode.length - 1);
+		const data = await this.matrix.getAccountData("im.ponies.user_emotes") as CustomEmojiAccountData | undefined;
+		if (data?.images && data.images[shortcode])
+			return `<img data-mx-emoticon src="${data.images[shortcode].url}" alt="${shortcode}" title="${shortcode}" />`
+		return `:${shortcode}:`;
 	}
 }

@@ -28,3 +28,22 @@ export type StrippedStateEvent = {
 export type RoomMessageEvent = ClientEvent & {
 	content: RoomMessageEventContent;
 }
+
+export type CustomEmojiAccountData = {
+	pack?: {
+		avatar_url: string;
+		display_name: string;
+		attribution: string;
+	};
+	images?: {
+		[shortcode: string]: {
+			url: string;
+			info: {
+				w: number;
+				h: number;
+				mimetype: string;
+				size: number;
+			}
+		}
+	}
+}
