@@ -2,9 +2,9 @@ import { Message, MessageType, OmitPartialGroupDMChannel } from "discord.js";
 import fetch from "node-fetch";
 import { AbortSignal } from "node-fetch/externals";
 
-import { Summatia } from "../summatia";
-import { RoomMessageEvent } from "../types/events";
-import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from ".";
+import { Summatia } from "../../summatia";
+import { RoomMessageEvent } from "../../types/events";
+import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
 
 export default class AiModule extends SummatiaModule implements MatrixHandler, DiscordHandler {
 	constructor() {
