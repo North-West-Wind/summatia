@@ -2,7 +2,6 @@ import { mkdirSync } from "fs";
 import { Database, verbose } from "sqlite3";
 
 import { BridgeDatabaseProvider } from "./database-providers/bridge";
-import { EmojiDatabaseProvider } from "./database-providers/emoji";
 import { LinkDatabaseProvider } from "./database-providers/link";
 import { ListenDatabaseProvider } from "./database-providers/listen";
 import { SummatiaDatabaseProvider } from "./database-providers/provider";
@@ -19,7 +18,6 @@ export class SummatiaDatabase {
 		link: LinkDatabaseProvider;
 		rss: RssDatabaseProvider;
 		splatoon3: Splatoon3DatabaseProvider;
-		emoji: EmojiDatabaseProvider;
 	}
 
 	constructor() {
@@ -33,7 +31,6 @@ export class SummatiaDatabase {
 			link: new LinkDatabaseProvider(this.db),
 			rss: new RssDatabaseProvider(this.db),
 			splatoon3: new Splatoon3DatabaseProvider(this.db),
-			emoji: new EmojiDatabaseProvider(this.db),
 		};
 		this.init();
 	}

@@ -1,7 +1,6 @@
 import "dotenv/config";
 
 import { BridgeCommand } from "./modules/commands/bridge";
-import { EmojiCommand } from "./modules/commands/emoji";
 import { HelpCommand } from "./modules/commands/help";
 import { JitsiCommand } from "./modules/commands/jitsi";
 import { RssCommand } from "./modules/commands/rss";
@@ -20,7 +19,6 @@ import { RandomCommand } from "./modules/commands/random";
 	summatia.addModule(new LargeMediaModule());
 	// command modules
 	summatia.addModule(new BridgeCommand());
-	summatia.addModule(new EmojiCommand());
 	summatia.addModule(new HelpCommand());
 	summatia.addModule(new JitsiCommand());
 	//summatia.addModule(new ListenCommand());

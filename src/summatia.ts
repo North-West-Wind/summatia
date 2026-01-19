@@ -205,6 +205,14 @@ export class Summatia {
 				);
 	
 			Logger.discord.log(`Successfully reloaded ${(data as []).length} application (/) commands.`);
+
+			data = await this.discord.rest.get(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!));
+			for (const { id, name } of data as { id: string, name: string }[]) {
+				if (!commands.some(command => command.name == name)) {
+					await this.discord.rest.delete(Routes.applicationCommand(process.env.DISCORD_CLIENT_ID!, id));
+					Logger.discord.log("Successfully deleted applcation (/) command %s.", name);
+				}
+			}
 		} catch (error) {
 			Logger.discord.error("Failed to refresh application (/) commands.", error);
 		}
