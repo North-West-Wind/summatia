@@ -10,6 +10,7 @@ import { InviteModerationModule } from "./modules/moderation/invite";
 import { LinkModerationModule } from "./modules/moderation/link";
 import { Summatia } from "./summatia";
 import { RandomCommand } from "./modules/commands/random";
+import { SpamModerationModule } from "./modules/moderation/spam";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);
@@ -29,6 +30,7 @@ import { RandomCommand } from "./modules/commands/random";
 	// moderation modules
 	summatia.addModule(new InviteModerationModule());
 	summatia.addModule(new LinkModerationModule());
+	summatia.addModule(new SpamModerationModule());
 	
 	await summatia.refreshDiscordCommands();
 	await summatia.waitDatabase();
