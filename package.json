@@ -16,6 +16,7 @@
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@esm2cjs/normalize-url": "^8.0.0",
+    "@huggingface/transformers": "^3.8.1",
     "@napi-rs/canvas": "^0.1.88",
     "chalk": "^4.1.2",
     "discord.js": "^14.25.1",
