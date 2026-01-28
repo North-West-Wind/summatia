@@ -16,11 +16,11 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 			await (message.channel as TextChannel).send("Highly suspicious. Get bonked <:bonk:1465722513861378244>");
 		}
 		// ScamLLM classifier
-		if (message.content) {
+		else if (message.content) {
 			const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/ScamLLM-ONNX");
 			const responses = (await classifier(message.content)) as TextClassificationOutput;
 			console.log(responses);
-			if (responses[0].label == "Label 1")
+			if (responses[0].label == "LABEL_1")
 				await (message.channel as TextChannel).send("<@416227242264363008> I think that's a scam <:think:1466025457983033557>");
 		}
 	}
