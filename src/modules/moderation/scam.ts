@@ -19,7 +19,8 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 		else if (message.content) {
 			const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/ScamLLM-ONNX");
 			const responses = (await classifier(message.content)) as TextClassificationOutput;
-			if (responses[0].label == "LABEL_1")
+			console.log(responses[0]);
+			if (responses[0].label == "LABEL_1" && responses[0].score < 0.5)
 				await message.reply("<@416227242264363008> I think that's a scam <:think:1466025457983033557>");
 		}
 	}
