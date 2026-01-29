@@ -23,6 +23,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "image-meta": "^0.2.2",
+    "is-url": "^1.2.4",
     "markdown-it": "^14.1.0",
     "matrix-bot-sdk": "^0.7.1",
     "matrix-js-sdk": "^39.4.0",
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@types/express": "^5.0.6",
+    "@types/is-url": "^1.2.32",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.4",
     "@types/node-cron": "^3.0.11",
