@@ -62,7 +62,7 @@ export class NoticeModule extends SummatiaModule implements Startup {
 					} else {
 						Logger.module.log(`New user ${user.name} joined the instance!`);
 						const roomId = await summatia.matrix.createRoom({ invite: [user.name], is_direct: true, name: "Welcome!" });
-						await summatia.matrix.sendMessage(roomId, this.message);
+						await summatia.matrix.sendText(roomId, this.message);
 					}
 				}
 			}
