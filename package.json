@@ -25,7 +25,7 @@
     "image-meta": "^0.2.2",
     "is-url": "^1.2.4",
     "markdown-it": "^14.1.0",
-    "matrix-bot-sdk": "^0.8.0",
+    "matrix-bot-sdk": "^0.7.1",
     "matrix-js-sdk": "^39.4.0",
     "mime-lite": "^1.0.3",
     "moment": "^2.30.1",
