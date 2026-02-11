@@ -40,7 +40,7 @@ export class NoticeModule extends SummatiaModule implements Startup {
 		const qs = {
 			deactivated: false,
 			dir: "b",
-			from: 0,
+			from: "0",
 			guests: false,
 			limit: 10,
 			locked: false,
@@ -51,10 +51,10 @@ export class NoticeModule extends SummatiaModule implements Startup {
 			if (this.processing) return;
 			this.processing = true;
 
-			qs.from = 0;
+			qs.from = "0";
 
 			while (this.processing) {
-				const { users } = await summatia.matrix.doRequest("GET", "/_synapse/admin/v2/users", qs) as SynapseUserList;
+				const { next_token, users } = await summatia.matrix.doRequest("GET", "/_synapse/admin/v2/users", qs) as SynapseUserList;
 				for (const user of users) {
 					if ((user as any).creation_ts as number < this.lastUpdate) {
 						this.processing = false;
@@ -66,9 +66,10 @@ export class NoticeModule extends SummatiaModule implements Startup {
 						await summatia.matrix.sendText(roomId, this.message);
 					}
 				}
+				qs.from = next_token;
 			}
 			this.lastUpdate = Date.now();
-		}, 60000);
+		}, 20000);
 	}
 
 }
