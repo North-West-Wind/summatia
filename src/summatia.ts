@@ -1,6 +1,6 @@
 import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, Partials, PresenceData, PresenceStatusData, Routes, Snowflake } from "discord.js";
 import { mkdirSync } from "fs";
-import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, SimpleFsStorageProvider } from "matrix-bot-sdk";
+import { AutojoinRoomsMixin, AutojoinUpgradedRoomsMixin, MatrixClient, RustSdkCryptoStorageProvider, RustSdkCryptoStoreType, SimpleFsStorageProvider } from "matrix-bot-sdk";
 
 import { SummatiaDatabase } from "./db";
 import Logger from "./helpers/logger";
@@ -40,7 +40,7 @@ export class Summatia {
 		mkdirSync("runtime/crypto", { recursive: true });
 
 		const storage = new SimpleFsStorageProvider("runtime/matrix.json");
-		const cryptoStorage = new RustSdkCryptoStorageProvider("runtime/crypto");
+		const cryptoStorage = new RustSdkCryptoStorageProvider("runtime/crypto", RustSdkCryptoStoreType.Sqlite);
 		
 		this.matrix = new MatrixClient(process.env.MATRIX_HOMESERVER!, process.env.MATRIX_TOKEN!, storage, cryptoStorage);
 		AutojoinRoomsMixin.setupOnClient(this.matrix);

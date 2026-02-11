@@ -11,6 +11,7 @@ import { LinkModerationModule } from "./modules/moderation/link";
 import { Summatia } from "./summatia";
 import { RandomCommand } from "./modules/commands/random";
 import { ScamModerationModule } from "./modules/moderation/scam";
+import { NoticeModule } from "./modules/notice";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);
@@ -18,6 +19,7 @@ import { ScamModerationModule } from "./modules/moderation/scam";
 	// add modules
 	//summatia.addModule(new AiModule());
 	summatia.addModule(new LargeMediaModule());
+	summatia.addModule(new NoticeModule());
 	// command modules
 	summatia.addModule(new BridgeCommand());
 	summatia.addModule(new HelpCommand());
