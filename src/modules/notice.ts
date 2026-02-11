@@ -67,7 +67,7 @@ export class NoticeModule extends SummatiaModule implements Startup {
 				}
 			}
 			this.lastUpdate = Date.now();
-		}, 10000);
+		}, 60000);
 	}
 
 }
