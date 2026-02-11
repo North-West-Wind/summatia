@@ -1,15 +1,30 @@
 import { Message, MessageType, OmitPartialGroupDMChannel } from "discord.js";
+import { search } from "google-sr";
 import fetch from "node-fetch";
 import { AbortSignal } from "node-fetch/externals";
 
 import { Summatia } from "../../summatia";
 import { RoomMessageEvent } from "../../types/events";
 import { DiscordHandler, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
+import { existsSync, readFileSync } from "fs";
+import LLMPipeline from "../../helpers/llm";
+import { Chat, TextGenerationOutput, TextGenerationPipeline } from "@huggingface/transformers";
+import moment from "moment";
 
 export default class AiModule extends SummatiaModule implements MatrixHandler, DiscordHandler {
+	static readonly DEMENTIA = 300_000;
+	memory: Map<string, { messages: Chat, lastChat: number }>;
+	systemMessage: string;
+
 	constructor() {
-		if (!process.env.OLLAMA_MEMORY_HOST) throw new Error("ollama-memory host not set");
 		super("ai", { listen: [SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_MESSAGE] });
+		this.memory = new Map();
+		if (existsSync("runtime/system.txt")) this.systemMessage = readFileSync("runtime.txt", "utf8");
+		else this.systemMessage = "";
+		this.systemMessage += "\nKeep your messages short";
+		this.systemMessage += "\nYou can call the following functions to obtain additional information:" +
+		"\n/time - Retrieve the current time in Hong Kong Time" +
+		"\n/search - Search for a certain topic on the Internet";
 	}
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
@@ -57,7 +72,6 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 		}
 
 		if (body.includes(selfId) || body.toLowerCase().includes("summatia") || members == 2 && !name || replyToMe) {
-			if (!(await this.isOnline())) return;
 			summatia.matrix.setTyping(roomId, true).catch(() => {}); // nobody cares if you can't set typing
 			let parents: string[] = [];
 			const parentState = states.filter(state => state.type == "m.space.parent").pop();
@@ -75,8 +89,13 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 						this.logger.error(`Failed to get user profile of ${match.slice(1, -1)}`, err);
 					}
 				}
-			const res = await this.chat((await summatia.matrix.getUserProfile(event.sender)).displayname, platform, { message: body, reply }, Date.now() - event.origin_server_ts > 60000);
-			if (typeof res === "string") await summatia.matrix.replyText(roomId, event, res);
+			const memory = this.memory.get(roomId) || { messages: [], lastChat: Date.now() };
+			if (Date.now() - memory.lastChat > AiModule.DEMENTIA) memory.messages = [];
+			memory.messages.push(this.createUserMessage((await summatia.matrix.getUserProfile(event.sender)).displayname, platform, body, reply));
+			const generator = await this.getPipeline();
+			const res = await generator(memory.messages) as TextGenerationOutput;
+			if (typeof res[0].generated_text === "string")
+				await summatia.matrix.replyText(roomId, event, await this.ragOrReturn(res[0].generated_text as string, memory.messages));
 			summatia.matrix.setTyping(roomId, false).catch(() => {}); // nobody cares if you can't set typing
 		}
 	}
@@ -84,19 +103,31 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 	async onDiscordMessage(summatia: Summatia, message: OmitPartialGroupDMChannel<Message<boolean>>) {
 		if (message.author.id == message.client.user.id ||
 				message.author.bot && !message.webhookId ||
-				await summatia.isMatrixInChannel(message.channelId) ||
-				!(await this.isOnline())) return;
+				await summatia.isMatrixInChannel(message.channelId)) return;
+		if (!message.mentions.has(message.client.user.id) &&
+				!message.content.toLowerCase().includes(message.client.user.username) &&
+				!(message.type == MessageType.Reply &&
+				message.reference?.messageId && (await message.fetchReference()).author.id == message.client.user.id)) return;
 		const interval = setInterval(() => message.channel.sendTyping().catch(() => {}), 10000);
 		let res: boolean | string | undefined;
 		try {
-			if (message.channel.isDMBased()) res = await this.chatDiscord(message.author.displayName, "Discord Direct Message", message, false);
-			else if (message.mentions.has(message.client.user.id) ||
-				message.content.toLowerCase().includes("summatia") ||
-				message.type == MessageType.Reply && message.reference?.messageId && (await message.channel.messages.fetch(message.reference.messageId)).author.id == message.client.user.id) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, false);
-			else {
-				const chance = await summatia.database.providers.listen.shouldListen(message.channelId);
-				if (chance >= 0) res = await this.chatDiscord(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message, Math.random() * 100 > chance);
+			const memory = this.memory.get(message.channelId) || { messages: [], lastChat: Date.now() };
+			if (Date.now() - memory.lastChat > AiModule.DEMENTIA) memory.messages = [];
+			let reply: string | undefined;
+			if (message.reference) {
+				const ref = await message.fetchReference();
+				if (ref.content) reply = ref.cleanContent;
 			}
+
+			if (message.channel.isDMBased())
+				memory.messages.push(this.createUserMessage(message.author.displayName, "Discord Direct Message", message.cleanContent, reply));
+			else
+				memory.messages.push(this.createUserMessage(message.author.displayName, `Discord channel "${message.channel.name}" in server "${message.guild?.name}"`, message.cleanContent, reply));
+			
+			const generator = await this.getPipeline();
+			const res = await generator(memory.messages) as TextGenerationOutput;
+			if (typeof res[0].generated_text === "string")
+				await message.reply(await this.ragOrReturn(res[0].generated_text as string, memory.messages));
 	
 			if (res && typeof res === "string")
 				await message.channel.send(res);
@@ -106,55 +137,37 @@ export default class AiModule extends SummatiaModule implements MatrixHandler, D
 		clearInterval(interval);
 	}
 
-	private async isOnline() {
-		const res = await fetch(process.env.OLLAMA_MEMORY_HOST! + "/check");
-		return res.ok;
+	private createUserMessage(name: string, platform: string, message: string, reply?: string) {
+		let content = "";
+		content += `Platform: ${platform || "Unknown"}; `;
+		content += `Message from ${name || "Unknown"}; `;
+		if (reply) content += `In reply to:\n${reply}`;
+		content += `\n\nMessage:\n${message}`;
+		return { role: "user", content } as Chat[0];
 	}
 
-	private async chat(name: string, platform: string, content: ({ message: string, images?: string[] } | { message?: string, images: string[] }) & { reply?: string }, noResponse: boolean) {
-		const sendObj: { name: string, platform: string, noResponse: boolean, message?: string, reply?: string, images?: string[] } = {
-			name,
-			platform,
-			noResponse
-		};
-		if (content.message) sendObj.message = content.message;
-		if (content.images) sendObj.images = content.images;
-		try {
-			const res = await fetch(process.env.OLLAMA_MEMORY_HOST! + "/chat/summatia", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(sendObj),
-				signal: AbortSignal.timeout(1800_000) as AbortSignal // 30 minute timeout
-			});
-			const json = await res.json();
-			if (json.error) return false;
-			else return noResponse ? true : json.message.content;
-		} catch (err) {
-			return false;
-		}
+	private async getPipeline() {
+		return (await LLMPipeline.getInstance("text-generation", "onnx-community/Qwen3-0.6B-ONNX")) as TextGenerationPipeline;
 	}
 
-	private async chatDiscord(name: string, platform: string, message: Message, noResponse: boolean) {
-		let msg: string | undefined, reply: string | undefined;
-		let imgs: string[] | undefined;
-		if (message.content) msg = message.cleanContent;
-		if (message.reference) {
-			const ref = await message.fetchReference();
-			if (ref.content) reply = ref.cleanContent;
+	private async ragOrReturn(response: string, messages: Chat): Promise<string> {
+		const args = response.split(" ");
+		const generator = await this.getPipeline();
+		let content: string;
+		switch (args[0]) {
+			case "/time":
+				content = `Command: /time\n`;
+				content = `Current time in Hong Kong: ${moment().format("HH:mm:ss Do MMMM YYYY")}`;
+				messages.push({ role: "user", content });
+				return this.ragOrReturn((await generator(messages) as TextGenerationOutput)[0].generated_text as string, messages);
+			case "/search":
+				search({ query: args.slice(1).join(" "), requestConfig: { queryParams: { gl: "us" } } })
+				content = `Command: /time\n`;
+				content = `Current time in Hong Kong: ${moment().format("HH:mm:ss Do MMMM YYYY")}`;
+				messages.push({ role: "user", content });
+				return this.ragOrReturn((await generator(messages) as TextGenerationOutput)[0].generated_text as string, messages);
+			default:
+				return response;
 		}
-		if (message.attachments.size) {
-			const images: string[] = [];
-			for (const attachment of message.attachments.values()) {
-				if (!attachment.contentType?.startsWith("image/")) continue;
-				try {
-					const res = await fetch(attachment.url);
-					if (res.ok) images.push((await res.buffer()).toString("base64"));
-				} catch (err) {
-					this.logger.error("Failed to convert attachment to Base64.", err);
-				}
-			}
-			imgs = images;
-		}
-		return await this.chat(name, platform, { message: msg!, images: imgs!, reply }, noResponse);
 	}
 }

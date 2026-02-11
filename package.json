@@ -22,6 +22,8 @@
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "google-sr": "^6.0.0",
+    "html-to-text": "^9.0.5",
     "image-meta": "^0.2.2",
     "is-url": "^1.2.4",
     "markdown-it": "^14.1.0",
