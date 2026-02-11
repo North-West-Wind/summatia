@@ -14,7 +14,7 @@ export class NoticeModule extends SummatiaModule implements Startup {
 		let message = "Hello there! Welcome to NorthWestWind's Matrix instance!\n";
 		message += "I'm Summatia :> This is an automated account and I'm here to deliver you a notice.\n\n";
 
-		message += "You are on `matrix.northwestw.in`. Hopefully you are aware of that. ";
+		message += "You are on \"matrix.northwestw.in\". Hopefully you are aware of that. ";
 		message += "This is an instance run by NorthWestWind (@northwestwind:matrix.northwestw.in). ";
 		message += "Message him to say hi! And tell him you saw this message!\n\n";
 
