@@ -55,8 +55,10 @@ export class NoticeModule extends SummatiaModule implements Startup {
 
 			while (this.processing) {
 				const { next_token, users } = await summatia.matrix.doRequest("GET", "/_synapse/admin/v2/users", qs) as SynapseUserList;
+				Logger.module.log(`"notice" module fetched ${users.length} users`);
 				for (const user of users) {
 					if ((user as any).creation_ts as number < this.lastUpdate) {
+						Logger.module.log(`"notice" module found user older than last update. Stopping...`);
 						this.processing = false;
 						break;
 					} else {
