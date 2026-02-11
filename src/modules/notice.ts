@@ -60,6 +60,7 @@ export class NoticeModule extends SummatiaModule implements Startup {
 						this.processing = false;
 						break;
 					} else {
+						if (user.name.startsWith("@discord_") || user.name.startsWith("@whatsapp_lid-")) continue
 						Logger.module.log(`New user ${user.name} joined the instance!`);
 						const roomId = await summatia.matrix.createRoom({ invite: [user.name], is_direct: true, name: "Welcome!" });
 						await summatia.matrix.sendText(roomId, this.message);
