@@ -18,7 +18,6 @@ export class NoticeModule extends SummatiaModule implements Startup {
 			return;
 		}
 
-		const url = `${summatia.matrix.homeserverUrl}/_synapse/admin/v2/users`;
 		const qs = {
 			deactivated: false,
 			dir: "b",
@@ -36,7 +35,7 @@ export class NoticeModule extends SummatiaModule implements Startup {
 			qs.from = 0;
 
 			while (this.processing) {
-				const { users } = await summatia.matrix.doRequest("GET", url, qs) as SynapseUserList;
+				const { users } = await summatia.matrix.doRequest("GET", "/_synapse/admin/v2/users", qs) as SynapseUserList;
 				console.log(users);
 				for (const user of users) {
 					if ((user as any).creation_ts as number < this.lastUpdate) {
