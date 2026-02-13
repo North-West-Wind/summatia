@@ -1,4 +1,4 @@
-import normalizeUrl from "@esm2cjs/normalize-url";
+import normalizeUrl from "normalize-url";
 import MarkdownIt from "markdown-it";
 
 const MARKDOWN = new MarkdownIt();
