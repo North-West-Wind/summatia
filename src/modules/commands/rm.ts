@@ -21,10 +21,10 @@ export class RemoveMessageCommand extends SummatiaDiscordCommandHelpModule {
 	getSlashCommandBuilder() {
 		const data = new SlashCommandBuilder().setName(this.name).setDescription(this.description());
 		data
-			.addUserOption(new SlashCommandUserOption().setName("user").setDescription("The user whose messages will be removed.").setRequired(false))
-			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role which will have its members' messages removed.").setRequired(false))
 			.addStringOption(new SlashCommandStringOption().setName("after").setDescription("Messages sent after this message ID will be removed.").setRequired(true))
 			.addStringOption(new SlashCommandStringOption().setName("before").setDescription("Messages sent before this message ID will be removed.").setRequired(false))
+			.addUserOption(new SlashCommandUserOption().setName("user").setDescription("The user whose messages will be removed.").setRequired(false))
+			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role which will have its members' messages removed.").setRequired(false))
 			.addChannelOption(new SlashCommandChannelOption().setName("channel").setDescription("Channel where the messages should be removed.").setRequired(false).addChannelTypes(ChannelType.GuildText));
 
 		return data;
