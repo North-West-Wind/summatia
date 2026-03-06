@@ -12,6 +12,7 @@ import { Summatia } from "./summatia";
 import { RandomCommand } from "./modules/commands/random";
 import { ScamModerationModule } from "./modules/moderation/scam";
 import { NoticeModule } from "./modules/notice";
+import { RemoveMessageCommand } from "./modules/commands/rm";
 
 (async () => {
 	const summatia = new Summatia(":> ", !process.env.MATRIX_DISABLED, !process.env.DISCORD_DISABLED);
@@ -26,6 +27,7 @@ import { NoticeModule } from "./modules/notice";
 	summatia.addModule(new JitsiCommand());
 	//summatia.addModule(new ListenCommand());
 	summatia.addModule(new RandomCommand());
+	summatia.addModule(new RemoveMessageCommand());
 	summatia.addModule(new RssCommand());
 	summatia.addModule(new Splatoon3Command());
 	//summatia.addModule(new UnlistenCommand());
