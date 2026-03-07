@@ -1,17 +1,16 @@
-import { Message, Snowflake, TextChannel } from "discord.js";
+import { ChannelType, Message, Snowflake, TextChannel } from "discord.js";
 
-import { cleanUrl } from "../../helpers/strings";
 import { Summatia } from "../../summatia";
 import { RoomMessageEvent } from "../../types/events";
 import { DiscordHandler, Initialized, MatrixHandler, SummatiaListeners, SummatiaModule } from "..";
 
-const THRESHOLD = 5,
-	WINDOW_DURATION = 30_000,
-	TIMEOUT_DURATION = 60_000,
+const CHANNEL_THRESHOLD = 5,
+	WINDOW_DURATION = 10_000,
+	TIMEOUT_DURATION = 600_000,
 	KICK_THREAT = 5,
 	THREAT_DURATION = 24 * 60 * 60 * 1000,
 	
-	CHANNEL_THRESHOLD = 15;
+	MESSAGE_THRESHOLD = 15;
 
 // discord types
 type GuildID = Snowflake;
@@ -21,7 +20,7 @@ type UserID = Snowflake;
 
 type UserLink = {
 	id: Snowflake;
-	channels: Map<ChannelID, Map<MessageID, { message: Message, urls: string[] }>>;
+	channels: Map<ChannelID, Map<MessageID, Message>>;
 	timeouts: Map<ChannelID, NodeJS.Timeout>;
 	threat: number;
 	unthreatTimeout?: NodeJS.Timeout;
@@ -30,13 +29,13 @@ type UserLink = {
 // matrix types
 type RoomID = string;
 
-export class LinkModerationModule extends SummatiaModule implements MatrixHandler, DiscordHandler, Initialized {
+export class SpamModerationModule extends SummatiaModule implements MatrixHandler, DiscordHandler, Initialized {
 	guildUserLinks: Map<GuildID, Map<UserID, UserLink>>;
-	channelLinks: Map<ChannelID, { deleteTimeout: NodeJS.Timeout, messages: { message: Message, urls: string[] }[] }>;
-	roomLinks: Map<RoomID, { deleteTimeout: NodeJS.Timeout, events: { event: RoomMessageEvent, urls: string[] }[] }>;
+	channelLinks: Map<ChannelID, { deleteTimeout: NodeJS.Timeout, messages: Message[] }>;
+	roomLinks: Map<RoomID, { deleteTimeout: NodeJS.Timeout, events: RoomMessageEvent[] }>;
 
 	constructor() {
-		super("link-mod", { listen: [SummatiaListeners.INIT, SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_MESSAGE] });
+		super("spam", { listen: [SummatiaListeners.INIT, SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_MESSAGE] });
 		this.guildUserLinks = new Map();
 		this.channelLinks = new Map();
 		this.roomLinks = new Map();
@@ -52,7 +51,9 @@ export class LinkModerationModule extends SummatiaModule implements MatrixHandle
 	}
 
 	async onDiscordMessage(summatia: Summatia, message: Message) {
-		if (message.guildId && message.member && message.content && /([a-zA-Z0-9]+:\/\/)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\.[A-Za-z]{2,4})(:[0-9]+)?(\/.*)?/.test(message.content)) {
+		if (message.guild && message.guildId && message.member) {
+			const ownerId = message.guild.ownerId;
+			const channelThreshold = Math.min(CHANNEL_THRESHOLD, (await message.guild.channels.fetch()).filter(channel => channel?.type == ChannelType.GuildText).size);
 			// there's at least 1 url
 			// if guild entry doesn't exist, create it
 			if (!this.guildUserLinks.has(message.guildId)) this.guildUserLinks.set(message.guildId, new Map());
@@ -63,8 +64,7 @@ export class LinkModerationModule extends SummatiaModule implements MatrixHandle
 			// add channel id to set
 			if (!userLink.channels.has(message.channelId)) userLink.channels.set(message.channelId, new Map());
 			// add message and urls to map, urls are normalized
-			const urls = message.content.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => cleanUrl(url));
-			userLink.channels.get(message.channelId)!.set(message.id, { message, urls });
+			userLink.channels.get(message.channelId)!.set(message.id, message);
 			// clear old timeout if exists
 			if (userLink.timeouts.has(message.channelId)) userLink.timeouts.get(message.channelId)!.refresh();
 			// set timeout for removing threats
@@ -73,20 +73,15 @@ export class LinkModerationModule extends SummatiaModule implements MatrixHandle
 				userLink.timeouts.delete(message.channelId);
 			}, WINDOW_DURATION));
 
-			// look for repeated urls
-			const counts = new Map<string, number>();
-			for (const map of userLink.channels.values())
-				for (const { urls } of map.values())
-					for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
-
-			if (userLink.channels.size >= THRESHOLD || Array.from(counts.values()).some(count => count >= THRESHOLD)) {
+			// handle spam on every channel
+			if (userLink.channels.size >= channelThreshold) {
 				summatia.database.providers.link.setLinkSpamUser(message.author.id, message.guildId!, ++userLink.threat);
 				if (userLink.unthreatTimeout) clearTimeout(userLink.unthreatTimeout);
 				userLink.unthreatTimeout = setTimeout(() => summatia.database.providers.link.setLinkSpamUser(message.author.id, message.guildId!, --userLink.threat), THREAT_DURATION * userLink.threat);
 
 				// delete messages
 				for (const map of userLink.channels.values())
-					for (const { message } of map.values())
+					for (const message of map.values())
 						try {
 							await message.delete();
 						} catch (err) {
@@ -98,52 +93,44 @@ export class LinkModerationModule extends SummatiaModule implements MatrixHandle
 				userLink.timeouts.clear();
 
 				if (userLink.threat >= KICK_THREAT) {
-					await message.member.kick("You spam too many links too quickly");
+					await message.member.kick("You spammed too many messages too quickly");
 					userLinks.delete(message.author.id);
-				} else await message.member.timeout(TIMEOUT_DURATION * userLink.threat * userLink.threat, "You spam too many links too quickly");
+					await (message.channel as TextChannel).send(`<@${ownerId}> I kicked <@${message.author.id}> (**${message.member.displayName}**) for spamming`);
+				} else {
+					await message.member.timeout(TIMEOUT_DURATION * userLink.threat * userLink.threat, "You spammed too many messages too quickly");
+					await (message.channel as TextChannel).send(`<@${ownerId}> I timed out <@${message.author.id}> for spamming (channel)`);
+				}
 			}
 
 			// after handling per-user link spam, handle per-channel link spam
 			if (!this.channelLinks.has(message.channelId)) this.channelLinks.set(message.channelId, { deleteTimeout: setTimeout(() => this.channelLinks.delete(message.channelId), WINDOW_DURATION), messages: [] });
 			const channelLink = this.channelLinks.get(message.channelId)!;
 			channelLink.deleteTimeout.refresh();
-			channelLink.messages.push({ message, urls });
+			channelLink.messages.push(message);
 
-			counts.clear();
-			for (const messages of this.channelLinks.values())
-				for (const { urls } of messages.messages)
-					for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
-
-			if (channelLink.messages.length >= CHANNEL_THRESHOLD || Array.from(counts.values()).some(count => count >= THRESHOLD)) {
-				await (message.channel as TextChannel).send("Too many links!");
+			if (channelLink.messages.length >= MESSAGE_THRESHOLD) {
 				for (const msg of channelLink.messages) {
-					await msg.message.delete();
-					await msg.message.member?.timeout(TIMEOUT_DURATION);
+					await msg.delete();
 				}
+				await message.member.timeout(TIMEOUT_DURATION);
+				await (message.channel as TextChannel).send(`<@${ownerId}> I timed out <@${message.author.id}> for spamming (message)`);
 				this.channelLinks.delete(message.channelId);
 			}
 		}
 	}
 
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
-		if (event.content?.msgtype !== 'm.text' || await summatia.getRoomMemberCount(roomId) <= 2 || !/([a-zA-Z0-9]+:\/\/)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\.[A-Za-z]{2,4})(:[0-9]+)?(\/.*)?/.test(event.content.body)) return;
-
-		const urls = event.content.body.split(/\s/g).filter(segment => this.isUrl(segment)).map(url => cleanUrl(url));
+		if (event.content?.msgtype !== 'm.text' || await summatia.getRoomMemberCount(roomId) <= 2) return;
 
 		if (!this.roomLinks.has(roomId)) this.roomLinks.set(roomId, { deleteTimeout: setTimeout(() => this.roomLinks.delete(roomId), WINDOW_DURATION), events: [] });
 		const roomLink = this.roomLinks.get(roomId)!;
 		roomLink.deleteTimeout.refresh();
-		roomLink.events.push({ event, urls });
+		roomLink.events.push(event);
 
-		const counts = new Map<string, number>();
-		for (const messages of this.channelLinks.values())
-			for (const { urls } of messages.messages)
-				for (const url of urls) counts.set(url, (counts.get(url) || 0) + 1);
-
-		if (roomLink.events.length >= CHANNEL_THRESHOLD || Array.from(counts.values()).some(count => count >= THRESHOLD)) {
+		if (roomLink.events.length >= MESSAGE_THRESHOLD) {
 			await summatia.matrix.sendText(roomId, "Too many links!");
 			for (const evt of roomLink.events) {
-				await summatia.matrix.redactEvent(roomId, evt.event.event_id);
+				await summatia.matrix.redactEvent(roomId, evt.event_id);
 			}
 			this.channelLinks.delete(roomId);
 		}
@@ -156,15 +143,5 @@ export class LinkModerationModule extends SummatiaModule implements MatrixHandle
 			timeouts: new Map(),
 			threat: 0
 		} as UserLink;
-	}
-
-	private isUrl(str: string) {
-		const pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-			'((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-			'((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-			'(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-			'(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
-			'(\\#[-a-z\\d_]*)?$','i'); // fragment locator
-		return !!pattern.test(str);
 	}
 }
