@@ -1,4 +1,4 @@
-import { Message, Snowflake, TextChannel } from "discord.js";
+import { Message, TextChannel } from "discord.js";
 import { SummatiaModule, DiscordHandler, SummatiaListeners } from "..";
 import { Summatia } from "../../summatia";
 import LLMPipeline from "../../helpers/llm";
@@ -19,7 +19,7 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 				await (message.channel as TextChannel).send("Highly suspicious. Get bonked <:bonk:1465722513861378244>");
 			}
 			// ScamLLM classifier
-			else if (message.content && !isUrl(message.content)) {
+			else if (message.content && !message.author.bot && !message.webhookId && !isUrl(message.content)) {
 				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/ScamLLM-ONNX");
 				const responses = (await classifier(message.content)) as TextClassificationOutput;
 				if (responses[0].label == "LABEL_1" && responses[0].score > 0.8)

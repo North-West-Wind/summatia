@@ -95,10 +95,10 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 				if (userLink.threat >= KICK_THREAT) {
 					await message.member.kick("You spammed too many messages too quickly");
 					userLinks.delete(message.author.id);
-					await (message.channel as TextChannel).send(`<@${ownerId}> I kicked <@${message.author.id}> (**${message.member.displayName}**) for spamming`);
+					await (message.channel as TextChannel).send(`<@${ownerId}> I kicked <@${message.author.id}> (**${message.member.displayName}**) for spamming.`);
 				} else {
-					await message.member.timeout(TIMEOUT_DURATION * userLink.threat * userLink.threat, "You spammed too many messages too quickly");
-					await (message.channel as TextChannel).send(`<@${ownerId}> I timed out <@${message.author.id}> for spamming (channel)`);
+					await message.member.timeout(TIMEOUT_DURATION * userLink.threat * userLink.threat, "You spammed too many messages too quickly.");
+					await (message.channel as TextChannel).send(`<@${ownerId}> I timed out <@${message.author.id}> for spamming (channel).`);
 				}
 			}
 
@@ -110,10 +110,14 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 
 			if (channelLink.messages.length >= MESSAGE_THRESHOLD) {
 				for (const msg of channelLink.messages) {
-					await msg.delete();
+					try {
+						await msg.delete();
+					} catch (err) {
+						this.logger.error("Failed to delete message.", err);
+					}
 				}
 				await message.member.timeout(TIMEOUT_DURATION);
-				await (message.channel as TextChannel).send(`<@${ownerId}> I timed out <@${message.author.id}> for spamming (message)`);
+				await (message.channel as TextChannel).send(`<@${ownerId}> I timed out <@${message.author.id}> for spamming (message).`);
 				this.channelLinks.delete(message.channelId);
 			}
 		}
@@ -130,7 +134,11 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 		if (roomLink.events.length >= MESSAGE_THRESHOLD) {
 			await summatia.matrix.sendText(roomId, "Too many links!");
 			for (const evt of roomLink.events) {
-				await summatia.matrix.redactEvent(roomId, evt.event_id);
+				try {
+					await summatia.matrix.redactEvent(roomId, evt.event_id);
+				} catch (err) {
+					this.logger.error("Failed to redact event", err);
+				}
 			}
 			this.channelLinks.delete(roomId);
 		}
