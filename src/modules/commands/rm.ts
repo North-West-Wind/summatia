@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandUserOption, SlashCommandRoleOption, SlashCommandStringOption, SlashCommandIntegerOption, SlashCommandChannelOption, ChannelType, Role, Snowflake, TextBasedChannel, SnowflakeUtil, TextChannel } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, SlashCommandUserOption, SlashCommandRoleOption, SlashCommandStringOption, SlashCommandIntegerOption, SlashCommandChannelOption, ChannelType, Role, Snowflake, TextBasedChannel, SnowflakeUtil, TextChannel, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { Summatia } from "../../summatia";
 import { SummatiaDiscordCommandHelpModule } from "../commands";
 
@@ -32,9 +32,10 @@ export class RemoveMessageCommand extends SummatiaDiscordCommandHelpModule {
 
 	async onDiscordCommandInteraction(_summatia: Summatia, interaction: ChatInputCommandInteraction) {
 		if (!interaction.guild) return await interaction.reply("This command can only be used in servers.");
+		if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages)) return await interaction.reply({ content: "You don't have the permission to use this!", flags: MessageFlags.Ephemeral });
 		const user = interaction.options.getUser("user");
 		const role = interaction.options.getRole("role");
-		if (!user && !role) return await interaction.reply("You must supply either one of user and role.");
+		if (!user && !role) return await interaction.reply({ content: "You must supply either one of user and role.", flags: MessageFlags.Ephemeral });
 		await interaction.deferReply();
 		const channel = interaction.options.getChannel("channel", false, [ChannelType.GuildText]);
 		let authorIds: Set<Snowflake>;
