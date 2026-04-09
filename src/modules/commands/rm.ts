@@ -48,17 +48,25 @@ export class RemoveMessageCommand extends SummatiaDiscordCommandHelpModule {
 		let success = 0;
 		let failure = 0;
 		for (const channel of channels) {
+			const pendingDeletion: Snowflake[] = [];
 			try {
-				const pendingDeletion: Snowflake[] = [];
 				const messages = await channel.messages.fetch({ after: interaction.options.getString("after", true), before: interaction.options.getString("before") || undefined });
 				for (const message of messages.values())
 					if (authorIds.has(message.author.id))
 						pendingDeletion.push(message.id);
 				await channel.bulkDelete(pendingDeletion);
-				success++;
+				success += pendingDeletion.length;
 			} catch (err) {
 				this.logger.error("Failed to bulk delete in channel " + channel.id, err);
-				failure++;
+				for (const id of pendingDeletion) {
+					try {
+						await channel.messages.delete(id);
+						success++;
+					} catch (err) {
+						this.logger.error("Failed to delete message", err);
+						failure++;
+					}
+				}
 			}
 		}
 		await interaction.editReply(`Success/Failure: ${success}/${failure}`);
