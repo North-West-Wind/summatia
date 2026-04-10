@@ -38,7 +38,7 @@ export class Summatia {
 		mkdirSync("runtime/crypto", { recursive: true });
 
 		const storage = new SimpleFsStorageProvider("runtime/matrix.json");
-		const cryptoStorage = new RustSdkCryptoStorageProvider("runtime/crypto");
+		const cryptoStorage = new RustSdkCryptoStorageProvider("runtime/crypto", 0);
 		
 		this.matrix = new MatrixClient(process.env.MATRIX_HOMESERVER!, process.env.MATRIX_TOKEN!, storage, cryptoStorage);
 		AutojoinRoomsMixin.setupOnClient(this.matrix);
