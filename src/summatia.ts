@@ -6,7 +6,6 @@ import { SummatiaDatabase } from "./db";
 import Logger from "./helpers/logger";
 import { DiscordEmojiHandler, DiscordGuildMemberHandler, DiscordHandler, DiscordReactionHandler, Initialized, MatrixHandler, Startup, SummatiaListeners, SummatiaModule } from "./modules";
 import { SummatiaCommandModule } from "./modules/commands";
-import { SummatiaRest } from "./rest";
 import { CustomEmojiAccountData, RoomMessageEvent } from "./types/events";
 
 // Summatia handles both Matrix and Discord
@@ -18,7 +17,6 @@ export class Summatia {
 	useDiscord: boolean;
 	modules: { -readonly [key in keyof typeof SummatiaListeners]: Map<string, SummatiaModule> };
 	database: SummatiaDatabase;
-	rest: SummatiaRest;
 	startTime: number;
 
 	constructor(prefix: string, useMatrix: boolean, useDiscord: boolean) {
@@ -62,8 +60,6 @@ export class Summatia {
 				Partials.Channel
 			]
 		});
-		
-		this.rest = new SummatiaRest();
 	}
 
 	addModule(module: SummatiaModule) {
@@ -152,8 +148,6 @@ export class Summatia {
 			await (module as unknown as Initialized).init(this);
 		}
 
-		this.rest.setup();
-
 		Logger.system.log("Finished setup");
 	}
 
@@ -179,8 +173,6 @@ export class Summatia {
 			Logger.module.log(`Starting ${module.name}...`);
 			await (module as unknown as Startup).start(this);
 		}
-
-		this.rest.start();
 	}
 
 	async refreshDiscordCommands() {

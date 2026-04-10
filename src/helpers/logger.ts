@@ -20,7 +20,6 @@ export default class Logger {
 	static discord = new Logger("Discord", "cyan");
 	static matrix = new Logger("Matrix", "cyan");
 	static db = new Logger("DB", "green");
-	static rest = new Logger("REST", "green");
 
 	private static maxLength = 0;
 	private readonly prefix?: string;
