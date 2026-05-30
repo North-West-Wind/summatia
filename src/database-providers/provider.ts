@@ -1,4 +1,4 @@
-import { Database } from "sqlite3";
+import { Database } from "better-sqlite3";
 
 import Logger from "../helpers/logger";
 
@@ -31,41 +31,20 @@ export abstract class SummatiaDatabaseProvider {
 		}
 	}
 
-	protected async createIfNotExist(name: string, innerQuery: string) {
-		const row = await this.get<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [name]);
-		if (!row) await this.run(`CREATE TABLE ${name} (${innerQuery})`);
+	protected createIfNotExist(name: string, innerQuery: string) {
+		const row = this.get<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [name]);
+		if (!row) this.run(`CREATE TABLE ${name} (${innerQuery})`);
 	}
 
-	protected async get<T>(query: string, args?: string[]) {
-		return new Promise<T | undefined>((res, rej) => {
-			const callback = (err: Error, row?: T) => {
-				if (err) rej(err);
-				else res(row);
-			};
-			if (args) this.db.get(query, args, callback);
-			else this.db.get(query, callback);
-		})
+	protected get<T>(query: string, ...args: any[]) {
+		return this.db.prepare(query).get(...args) as T | undefined;
 	}
 
-	protected async all<T>(query: string, args?: string[]) {
-		return new Promise<T[] | undefined>((res, rej) => {
-			const callback = (err: Error, row?: T[]) => {
-				if (err) rej(err);
-				else res(row);
-			};
-			if (args) this.db.all(query, args, callback);
-			else this.db.all(query, callback);
-		})
+	protected all<T>(query: string, ...args: any[]) {
+		return this.db.prepare(query).all(...args) as T[];
 	}
 
-	protected async run(query: string, args?: any[]) {
-		return new Promise<void>((res, rej) => {
-			const callback = (err: Error) => {
-				if (err) rej(err);
-				else res();
-			};
-			if (args) this.db.run(query, args, callback);
-			else this.db.run(query, callback);
-		})
+	protected run(query: string, ...args: any[]) {
+		this.db.prepare(query).run(...args);
 	}
 }

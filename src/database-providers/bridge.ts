@@ -1,5 +1,5 @@
 import { Snowflake } from "discord.js";
-import { Database, verbose } from "sqlite3";
+import sqlite3, { Database } from "better-sqlite3";
 
 import { SummatiaDatabaseProvider } from "./provider";
 
@@ -10,8 +10,7 @@ export class BridgeDatabaseProvider extends SummatiaDatabaseProvider {
 		super("bridge", db);
 
 		if (process.env.MAUTRIX_DATABASE) {
-			const sqlite3 = verbose();
-			this.mautrixDb = new sqlite3.Database(process.env.MAUTRIX_DATABASE, sqlite3.OPEN_READONLY);
+			this.mautrixDb = sqlite3(process.env.MAUTRIX_DATABASE, { readonly: true });
 		}
 	}
 
@@ -25,23 +24,13 @@ export class BridgeDatabaseProvider extends SummatiaDatabaseProvider {
 
 	getChannelRoom(channelId: Snowflake) {
 		if (!this.mautrixDb) return undefined;
-		return new Promise<string>((res, rej) => {
-			this.mautrixDb?.get("SELECT mxid FROM portal WHERE dcid = ?", [channelId], (err, row?: { mxid?: string }) => {
-				if (err) return rej(err);
-				if (!row?.mxid) res("");
-				else res(row.mxid);
-			});
-		});
+		const row = this.mautrixDb?.prepare("SELECT mxid FROM portal WHERE dcid = ?").get(channelId) as { mxid?: string };
+		return row?.mxid || "";
 	}
 
 	getRoomChannel(roomId: string) {
 		if (!this.mautrixDb) return undefined;
-		return new Promise<string>((res, rej) => {
-			this.mautrixDb?.get("SELECT dcid FROM portal WHERE mxid = ?", [roomId], (err, row?: { dcid?: string }) => {
-				if (err) return rej(err);
-				if (!row?.dcid) res("");
-				else res(row.dcid);
-			});
-		});
+		const row = this.mautrixDb?.prepare("SELECT dcid FROM portal WHERE mxid = ?").get(roomId) as { dcid?: string };
+		return row?.dcid || "";
 	}
 }

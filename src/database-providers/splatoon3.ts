@@ -1,4 +1,4 @@
-import { Database } from "sqlite3";
+import { Database } from "better-sqlite3";
 
 import { SummatiaDatabaseProvider } from "./provider";
 
@@ -32,32 +32,32 @@ export class Splatoon3DatabaseProvider extends SummatiaDatabaseProvider {
 
 	protected migrations(): (() => any | Promise<any>)[] {
 		return [
-			async () => {
-				await this.createIfNotExist("s3subs", "id TEXT NOT NULL PRIMARY KEY, bitflag INTEGER NOT NULL");
-				await this.createIfNotExist("s3past", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, s3id VARCHAR(32) NOT NULL");
+			() => {
+				this.createIfNotExist("s3subs", "id TEXT NOT NULL PRIMARY KEY, bitflag INTEGER NOT NULL");
+				this.createIfNotExist("s3past", "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, s3id VARCHAR(32) NOT NULL");
 			}
 		];
 	}
 
-	async setSubscriptions(id: string, manipulator: BitflagManipulator) {
-		const row = await this.get<{ id: string }>("SELECT id FROM s3subs WHERE id = ?", [id]);
+	setSubscriptions(id: string, manipulator: BitflagManipulator) {
+		const row = this.get<{ id: string }>("SELECT id FROM s3subs WHERE id = ?", [id]);
 		if (row?.id) {
-			if (!manipulator.bitflag) await this.run("DELETE FROM s3subs WHERE id = ?", [id]);
-			else await this.run("UPDATE s3subs SET bitflag = ? WHERE id = ?", [manipulator.bitflag, id]);
-		} else if (manipulator.bitflag) await this.run("INSERT INTO s3subs VALUES (?, ?)", [id, manipulator.bitflag]);
+			if (!manipulator.bitflag) this.run("DELETE FROM s3subs WHERE id = ?", [id]);
+			else this.run("UPDATE s3subs SET bitflag = ? WHERE id = ?", [manipulator.bitflag, id]);
+		} else if (manipulator.bitflag) this.run("INSERT INTO s3subs VALUES (?, ?)", [id, manipulator.bitflag]);
 	}
 
-	async getAllSubscriptions() {
+	getAllSubscriptions() {
 		const map = new Map<string, BitflagManipulator>();
-		(await this.all<{ id: string, bitflag: number }>("SELECT * FROM s3subs") || []).forEach(r => map.set(r.id, new BitflagManipulator(r.bitflag)));
+		(this.all<{ id: string, bitflag: number }>("SELECT * FROM s3subs") || []).forEach(r => map.set(r.id, new BitflagManipulator(r.bitflag)));
 		return map;
 	}
 
 	async addPastFest(s3id: string) {
-		await this.run("INSERT INTO s3past (s3id) VALUES (?)", [s3id]);
+		this.run("INSERT INTO s3past (s3id) VALUES (?)", [s3id]);
 	}
 
 	async getPastFests() {
-		return (await this.all<{ s3id: string }>("SELECT s3id FROM s3past"))?.map(x => x.s3id) || [];
+		return (this.all<{ s3id: string }>("SELECT s3id FROM s3past"))?.map(x => x.s3id) || [];
 	}
 }

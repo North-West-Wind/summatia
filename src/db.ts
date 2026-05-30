@@ -1,5 +1,5 @@
 import { mkdirSync } from "fs";
-import { Database, verbose } from "sqlite3";
+import sqlite3, { Database } from "better-sqlite3";
 
 import { BridgeDatabaseProvider } from "./database-providers/bridge";
 import { LinkDatabaseProvider } from "./database-providers/link";
@@ -22,8 +22,7 @@ export class SummatiaDatabase {
 
 	constructor() {
 		mkdirSync("runtime", { recursive: true });
-		const sqlite3 = verbose();
-		this.db = new sqlite3.Database("runtime/discord.db");
+		this.db = sqlite3("runtime/discord.db");
 		this.ready = false;
 		this.providers = {
 			bridge: new BridgeDatabaseProvider(this.db),
@@ -41,7 +40,7 @@ export class SummatiaDatabase {
 			await this.ensureMigrateVersionTable();
 			for (const provider of Object.values(this.providers)) {
 				Logger.db.log(`Initializing database provider ${provider.name}...`);
-				const [version, create] = await this.getProviderVersion(provider);
+				const [version, create] = this.getProviderVersion(provider);
 				await provider.migrate(version);
 				if (version != provider.version)
 					await this.setProviderVersion(provider, create);
@@ -56,45 +55,25 @@ export class SummatiaDatabase {
 		return this.ready;
 	}
 
-	private getProviderVersion(provider: SummatiaDatabaseProvider) {
-		return new Promise<[number | undefined, boolean]>((res, rej) => {
-			this.db.get("SELECT version FROM migrate_version WHERE name = ?", [provider.name], (err, row?: { version: number }) => {
-				if (err) rej(err);
-				else if (row?.version !== undefined || !provider.tables()) res([row?.version, !row]);
-				else {
-					this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [provider.tables()[0]], (err, row) => {
-						if (err) rej(err);
-						if (row) res([0, true]);
-						else res([undefined, true]);
-					});
-				}
-			});
-		});
+	private getProviderVersion(provider: SummatiaDatabaseProvider): [number | undefined, boolean] {
+		const row = this.db.prepare("SELECT version FROM migrate_version WHERE name = ?").get(provider.name) as { version: number };
+		if (row?.version !== undefined || !provider.tables()) return [row?.version, !row];
+		else {
+			const row = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(provider.tables()[0]);
+			return [row ? 0 : undefined, true];
+		}
 	}
 
 	private setProviderVersion(provider: SummatiaDatabaseProvider, create: boolean) {
-		return new Promise<void>((res, rej) => {
-			const query: [string, any[]] = create ?
-				["INSERT INTO migrate_version VALUES (?, ?)", [provider.name, provider.version]] : 
-				["UPDATE migrate_version SET version = ? WHERE name = ?", [provider.version, provider.name]];
-			this.db.run(query[0], query[1], (err) => {
-				if (err) rej(err);
-				else res();
-			});
-		});
+		const query: [string, any[]] = create ?
+			["INSERT INTO migrate_version VALUES (?, ?)", [provider.name, provider.version]] : 
+			["UPDATE migrate_version SET version = ? WHERE name = ?", [provider.version, provider.name]];
+		this.db.prepare(query[0]).run(query[1]);
 	}
 
 	private ensureMigrateVersionTable() {
-		return new Promise<void>((res, rej) => {
-			this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", ["migrate_version"], (err, row) => {
-				if (err) rej(err);
-				else if (!row)
-					this.db.run("CREATE TABLE migrate_version (name VARCHAR(32) NOT NULL PRIMARY KEY, version INTEGER NOT NULL)", (err) => {
-						if (err) rej(err);
-						else res();
-					});
-				else res();
-			});
-		})
+		const row = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get("migrate_version");
+		if (row) return;
+		this.db.prepare("CREATE TABLE migrate_version (name VARCHAR(32) NOT NULL PRIMARY KEY, version INTEGER NOT NULL)").run();
 	}
 }
