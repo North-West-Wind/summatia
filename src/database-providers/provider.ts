@@ -14,17 +14,17 @@ export abstract class SummatiaDatabaseProvider {
 	}
 
 	// returned array structure: [none -> this.version, 0 -> 1, 1 -> 2]
-	protected abstract migrations(): (() => any | Promise<any>)[];
+	protected abstract migrations(): (() => any)[];
 
 	abstract tables(): string[];
 
-	async migrate(currentVersion?: number) {
+	migrate(currentVersion?: number) {
 		if (currentVersion === undefined) {
 			Logger.db.log("Creating database provider", this.name);
-			await this.migrations()[0]();
+			this.migrations()[0]();
 		} else {
 			while (currentVersion < this.version) {
-				await this.migrations()[++currentVersion]();
+				this.migrations()[++currentVersion]();
 				Logger.db.log(`Migrated "${this.name}" from v${currentVersion - 1} to v${currentVersion}`);
 			}
 			Logger.db.log(`${this.name} is up-to-date (v${currentVersion}).`);

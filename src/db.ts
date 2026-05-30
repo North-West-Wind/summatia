@@ -31,19 +31,16 @@ export class SummatiaDatabase {
 			rss: new RssDatabaseProvider(this.db),
 			splatoon3: new Splatoon3DatabaseProvider(this.db),
 		};
-		this.init();
-	}
 
-	async init() {
 		try {
 			Logger.db.log("Ensuring migration version table exists...");
-			await this.ensureMigrateVersionTable();
+			this.ensureMigrateVersionTable();
 			for (const provider of Object.values(this.providers)) {
 				Logger.db.log(`Initializing database provider ${provider.name}...`);
 				const [version, create] = this.getProviderVersion(provider);
-				await provider.migrate(version);
+				provider.migrate(version);
 				if (version != provider.version)
-					await this.setProviderVersion(provider, create);
+					this.setProviderVersion(provider, create);
 			}
 			this.ready = true;
 		} catch (err) {
