@@ -20,9 +20,9 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 			}
 			// ScamLLM classifier
 			else if (message.content && !message.author.bot && !message.webhookId && !isUrl(message.content)) {
-				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/ScamLLM-ONNX");
+				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/bert-small-phishing-ONNX");
 				const responses = (await classifier(message.content)) as TextClassificationOutput;
-				if (responses[0].label == "LABEL_1" && responses[0].score > 0.8)
+				if (responses[0].label == "phishing" && responses[0].score > 0.8)
 					await message.reply(`<@${ownerId}> I think that's a scam <:think:1466025457983033557>`);
 			}
 		}
