@@ -7,7 +7,7 @@ import { RssCommand } from "./modules/commands/rss";
 import { Splatoon3Command } from "./modules/commands/splatoon3";
 import LargeMediaModule from "./modules/large-media";
 import { InviteModerationModule } from "./modules/moderation/invite";
-import { SpamModerationModule } from "./modules/moderation/link";
+import { SpamModerationModule } from "./modules/moderation/spam";
 import { Summatia } from "./summatia";
 import { RandomCommand } from "./modules/commands/random";
 import { ScamModerationModule } from "./modules/moderation/scam";
