@@ -14,15 +14,16 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 		if (message.guild) {
 			const ownerId = message.guild.ownerId;
 			// @everyone and then crypto images
+			// this is not reliable anymore. the spam module takes care of this most of the time.
 			if (message.content == "@everyone" && (message.attachments.size == 4 || message.attachments.size == 5)) {
 				await message.delete();
 				await (message.channel as TextChannel).send("Highly suspicious. Get bonked <:bonk:1465722513861378244>");
 			}
-			// ScamLLM classifier
+			// scam classifier
 			else if (message.content && !message.author.bot && !message.webhookId && !isUrl(message.content)) {
 				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/bert-small-phishing-ONNX");
 				const responses = (await classifier(message.cleanContent)) as TextClassificationOutput;
-				if (responses[0].label == "phishing" && responses[0].score > 0.8)
+				if (responses[0].label == "phishing" && responses[0].score > 0.85)
 					await message.reply(`<@${ownerId}> I think that's a scam <:think:1466025457983033557>`);
 			}
 		}
