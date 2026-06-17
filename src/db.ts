@@ -2,7 +2,6 @@ import { mkdirSync } from "fs";
 import sqlite3, { Database } from "better-sqlite3";
 
 import { BridgeDatabaseProvider } from "./database-providers/bridge";
-import { LinkDatabaseProvider } from "./database-providers/link";
 import { ListenDatabaseProvider } from "./database-providers/listen";
 import { SummatiaDatabaseProvider } from "./database-providers/provider";
 import { RssDatabaseProvider } from "./database-providers/rss";
@@ -15,7 +14,6 @@ export class SummatiaDatabase {
 	providers: {
 		bridge: BridgeDatabaseProvider;
 		listen: ListenDatabaseProvider;
-		link: LinkDatabaseProvider;
 		rss: RssDatabaseProvider;
 		splatoon3: Splatoon3DatabaseProvider;
 	}
@@ -27,7 +25,6 @@ export class SummatiaDatabase {
 		this.providers = {
 			bridge: new BridgeDatabaseProvider(this.db),
 			listen: new ListenDatabaseProvider(this.db),
-			link: new LinkDatabaseProvider(this.db),
 			rss: new RssDatabaseProvider(this.db),
 			splatoon3: new Splatoon3DatabaseProvider(this.db),
 		};
