@@ -21,9 +21,8 @@ export class InviteModerationModule extends SummatiaModule implements DiscordGui
 
 		if (uses >= (member.guild.memberCount - uses) * FACTOR) {
 			await member.guild.disableInvites();
-			const invites = await member.guild.invites.fetch();
-			for (const invite of invites.values())
-				await invite.inviter?.send(`Detected a potential raid for ${member.guild.name}. I've disabled invites for now.`);
+			const owner = await member.guild.fetchOwner();
+			await owner.user.send(`Detected a potential raid for ${member.guild.name}. I've disabled invites for now.`);
 		}
 	}
 	onGuildMemberRemove() { }
