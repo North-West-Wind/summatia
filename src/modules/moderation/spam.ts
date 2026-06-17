@@ -1,4 +1,4 @@
-import { Message, Snowflake, TextBasedChannel, TextChannel } from "discord.js";
+import { BaseGuildTextChannel, Message, Snowflake, TextBasedChannel, TextChannel } from "discord.js";
 
 import { Summatia } from "../../summatia";
 import { RoomMessageEvent } from "../../types/events";
@@ -8,8 +8,8 @@ import TimeoutWindow from "../../types/timeout-window";
 const CHANNEL_THRESHOLD = 5;
 
 export class SpamModerationModule extends SummatiaModule implements MatrixHandler, DiscordHandler {
-	discordWindows: Map<string, TimeoutWindow<number, { channel: Snowflake, message: Snowflake }[]>>;
-	matrixWindows: Map<string, TimeoutWindow<number, { room: string, event: string }[]>>;
+	discordWindows: Map<string, TimeoutWindow<number, { [key in Snowflake]: Snowflake[] }>>;
+	matrixWindows: Map<string, TimeoutWindow<number, { [key in string]: string[] }>>;
 
 	constructor() {
 		super("spam", { listen: [SummatiaListeners.MATRIX_MESSAGE, SummatiaListeners.DISCORD_MESSAGE] });
@@ -20,16 +20,19 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 	async onDiscordMessage(_summatia: Summatia, message: Message) {
 		if (message.guild && message.guildId && message.member) {
 			const windowId = message.guildId + "_" + message.member.id;
-			let timeoutWindow: TimeoutWindow<number, { channel: Snowflake, message: Snowflake }[]>;
+			let timeoutWindow: TimeoutWindow<number, { [key in Snowflake]: Snowflake[] }>;
 			if (this.discordWindows.has(windowId)) timeoutWindow = this.discordWindows.get(windowId)!;
 			else {
 				timeoutWindow = new TimeoutWindow(0, 8000);
 				this.discordWindows.set(windowId, timeoutWindow);
 			}
 
-			timeoutWindow.value += 1;
-			if (timeoutWindow.data === undefined) timeoutWindow.data = [];
-			timeoutWindow.data.push({ channel: message.channelId, message: message.id });
+			if (timeoutWindow.data === undefined) timeoutWindow.data = {};
+			if (!timeoutWindow.data[message.channelId]) {
+				timeoutWindow.data[message.channelId] = [];
+				timeoutWindow.value += 1;
+			}
+			timeoutWindow.data[message.channelId].push(message.id);
 
 			const ownerId = message.guild.ownerId;
 			const channelThreshold = Math.min(CHANNEL_THRESHOLD, (await message.guild.channels.fetch()).size);
@@ -43,18 +46,18 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 				} catch (err) {
 					this.logger.error(`Failed to timeout user ${message.author.id} in guild ${message.guildId}`, err);
 				}
-				for (const entry of timeoutWindow.data) {
+				for (const [channelId, messageIds] of Object.entries(timeoutWindow.data)) {
 					try {
-						const channel = await message.guild.channels.fetch(entry.channel);
-						await (channel as TextBasedChannel).messages.delete(entry.message);
+						const channel = await message.guild.channels.fetch(channelId);
+						await (channel as BaseGuildTextChannel).bulkDelete(messageIds);
 					} catch (err) {
-						this.logger.error(`Failed to delete message ${entry.message} in channel ${entry.channel}`, err);
+						this.logger.error(`Failed to delete ${messageIds.length} messages in channel ${channelId}`, err);
 					}
 				}
-				timeoutWindow.data = [];
+				timeoutWindow.data = {};
 			} else if (timeoutWindow.value > channelThreshold) {
-				await message.delete();
-				timeoutWindow.data = [];
+				await message.delete().catch(() => {});
+				timeoutWindow.data = {};
 			}
 		}
 	}
@@ -62,30 +65,35 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 	async onMatrixMessage(summatia: Summatia, roomId: string, event: RoomMessageEvent) {
 		if (event.content?.msgtype !== 'm.text' || await summatia.getRoomMemberCount(roomId) <= 2) return;
 
-		let timeoutWindow: TimeoutWindow<number, { room: string, event: string }[]>;
+		let timeoutWindow: TimeoutWindow<number, { [key in string]: string[] }>;
 		if (this.matrixWindows.has(event.sender)) timeoutWindow = this.matrixWindows.get(event.sender)!;
 		else {
 			timeoutWindow = new TimeoutWindow(0, 8000);
 			this.matrixWindows.set(event.sender, timeoutWindow);
 		}
 
-		timeoutWindow.value += 1;
-		if (timeoutWindow.data === undefined) timeoutWindow.data = [];
-		timeoutWindow.data.push({ room: roomId, event: event.event_id });
+		if (timeoutWindow.data === undefined) timeoutWindow.data = {};
+		if (!timeoutWindow.data[roomId]) {
+			timeoutWindow.data[roomId] = [];
+			timeoutWindow.value += 1;
+		}
+		timeoutWindow.data[roomId].push(event.event_id);
 
 		if (timeoutWindow.value == CHANNEL_THRESHOLD) {
 			await summatia.matrix.sendText(roomId, `You some how managed to spam in the ${CHANNEL_THRESHOLD} rooms I'm in. Get bonked`);
-			for (const entry of timeoutWindow.data) {
-				try {
-					await summatia.matrix.redactEvent(entry.room, entry.event);
-				} catch (err) {
-					this.logger.error("Failed to redact event", err);
+			for (const [roomId, eventIds] of Object.entries(timeoutWindow.data)) {
+				for (const eventId of eventIds) {
+					try {
+						await summatia.matrix.redactEvent(roomId, eventId);
+					} catch (err) {
+						this.logger.error(`Failed to redact event ${eventId} in room ${roomId}`, err);
+					}
 				}
 			}
-			timeoutWindow.data = [];
+			timeoutWindow.data = {};
 		} else if (timeoutWindow.value > CHANNEL_THRESHOLD) {
-			await summatia.matrix.redactEvent(roomId, event.event_id);
-			timeoutWindow.data = [];
+			await summatia.matrix.redactEvent(roomId, event.event_id).catch(() => {});
+			timeoutWindow.data = {};
 		}
 	}
 }
