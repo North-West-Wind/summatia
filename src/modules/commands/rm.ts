@@ -54,6 +54,7 @@ export class RemoveMessageCommand extends SummatiaDiscordCommandHelpModule {
 				for (const message of messages.values())
 					if (authorIds.has(message.author.id))
 						pendingDeletion.push(message.id);
+				this.logger.log(`Attempting to delete ${pendingDeletion.length} messages in channel ${channel.id}`);
 				await channel.bulkDelete(pendingDeletion);
 				success += pendingDeletion.length;
 			} catch (err) {
