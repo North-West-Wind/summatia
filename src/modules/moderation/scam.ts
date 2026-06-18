@@ -2,7 +2,7 @@ import { Message, TextChannel } from "discord.js";
 import { SummatiaModule, DiscordHandler, SummatiaListeners } from "..";
 import { Summatia } from "../../summatia";
 import LLMPipeline from "../../helpers/llm";
-import { TextClassificationOutput } from "@huggingface/transformers";
+import { TextClassificationOutput, TextClassificationPipeline } from "@huggingface/transformers";
 import isUrl from "is-url";
 
 export class ScamModerationModule extends SummatiaModule implements DiscordHandler {
@@ -21,10 +21,13 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 			}
 			// scam classifier
 			else if (message.content && !message.author.bot && !message.webhookId && !isUrl(message.content)) {
-				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/bert-small-phishing-ONNX");
-				const responses = (await classifier(message.cleanContent)) as TextClassificationOutput;
-				if (responses[0].label == "phishing" && responses[0].score > 0.85)
+				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/bert-small-phishing-ONNX") as TextClassificationPipeline;
+				classifier.tokenizer.model_max_length
+				const responses = (await classifier(message.cleanContent.slice(0, 512))) as TextClassificationOutput;
+				if (responses[0].label == "phishing" && responses[0].score > 0.9) {
+					this.logger.log("Scam detected! Score: %d, Content: %s", responses[0].score, message.cleanContent.slice(0, 512));
 					await message.reply(`<@${ownerId}> I think that's a scam <:think:1466025457983033557>`);
+				}
 			}
 		}
 	}
