@@ -22,4 +22,12 @@ export default class TimeoutWindow<T, D> {
 			this.data = undefined;
 		}, this._duration);
 	}
+
+	refresh() {
+		if (this.timeout) clearTimeout(this.timeout);
+		this.timeout = setTimeout(() => {
+			this._value = this._initialValue;
+			this.data = undefined;
+		}, this._duration);
+	}
 }
