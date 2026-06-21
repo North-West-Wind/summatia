@@ -15,12 +15,8 @@ export default class TimeoutWindow<T, D> {
 	}
 
 	set value(newValue: T) {
-		if (this.timeout) clearTimeout(this.timeout);
 		this._value = newValue;
-		this.timeout = setTimeout(() => {
-			this._value = this._initialValue;
-			this.data = undefined;
-		}, this._duration);
+		this.refresh();
 	}
 
 	refresh() {

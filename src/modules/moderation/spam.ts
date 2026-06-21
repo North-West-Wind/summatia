@@ -38,7 +38,7 @@ export class SpamModerationModule extends SummatiaModule implements MatrixHandle
 
 			const ownerId = message.guild.ownerId;
 			let channelThreshold = Math.min(CHANNEL_THRESHOLD, (await message.guild.channels.fetch()).size);
-			if (Object.values(timeoutWindow.data).flatMap(messages => messages.map(({ content }) => content.length)).reduce((a, b, _, { length }) => a + b / length) > 500)
+			if (timeoutWindow.data && Object.values(timeoutWindow.data).flatMap(messages => messages.map(({ content }) => content.length)).reduce((a, b, _, { length }) => a + b / length) > 500)
 				channelThreshold = Math.min(2, channelThreshold);
 
 			if (timeoutWindow.value == channelThreshold) {
