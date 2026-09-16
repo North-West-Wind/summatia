@@ -24,7 +24,7 @@ export class ScamModerationModule extends SummatiaModule implements DiscordHandl
 				const classifier = await LLMPipeline.getInstance("text-classification", "onnx-community/bert-small-phishing-ONNX") as TextClassificationPipeline;
 				classifier.tokenizer.model_max_length
 				const responses = (await classifier(message.cleanContent.slice(0, 512))) as TextClassificationOutput;
-				if (responses[0].label == "phishing" && responses[0].score > 0.9) {
+				if (responses[0].label == "phishing" && responses[0].score > 0.99) {
 					this.logger.log("Scam detected! Score: %d, Content: %s", responses[0].score, message.cleanContent.slice(0, 512));
 					await message.reply(`<@${ownerId}> I think that's a scam <:think:1466025457983033557>`);
 				}
